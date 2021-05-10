@@ -29,23 +29,32 @@ n_cell = length(cell_geom);
 
 cell_prop = cell(1,n_cell);
 lumen_segment = lumen_geom.segment;
+
+% the apical area used to scale the conductances G
 A = 104.719755;
 
 
 for i = 1:n_cell
     cell_raw = cell_geom{i};
     
+    % calculating areas
     api_face_area = cell_raw.face_area(cell_raw.api_idx);
     api_area = sum(api_face_area);
     bas_area = sum(cell_raw.face_area(cell_raw.bas_idx));
     lat_area = sum(cell_raw.face_area(cell_raw.lat_idx));
     
+    % calculate the mean z coordinate of each apical triangle
     api_coord_z = cell_raw.face_coord(cell_raw.api_idx,[3,6,9]);
     api_coord_z_mean = mean(api_coord_z,2);
+    
+    % sort apical triangles into corresponding lumen segments
     api_lumen_conn = discretize(api_coord_z_mean,lumen_segment);
+    
+    % find the unique lumen segments for this cell
     loc_int = unique(api_lumen_conn');
     api_area_int = zeros(size(loc_int));
     
+    % loop through the lumen segments to calculate areas per segment
     for j = 1:length(loc_int)
         api_int_ind = find(api_lumen_conn == loc_int(j));
         api_area_int(j) = sum(api_face_area(api_int_ind));
@@ -64,6 +73,7 @@ for i = 1:n_cell
     A_A = api_area;
     A_B = bas_area + lat_area;
     
+    % scale the rates based on cell surface areas
     scaled_rates = struct;
     scaled_rates.L_A    = P.L_A * A / A_A;
     scaled_rates.L_B    = P.L_B * A / A_B;

@@ -19,12 +19,14 @@ function dxdt = f_ODE(t,x,P,cell_prop,lumen_prop,displ)
 % x_l(5,:) H_A
 % x_l(6,:) CO_A
 
-n_c = length(cell_prop);
-n_l = lumen_prop.n_int;
+n_c = length(cell_prop);  % number of cells
+n_l = lumen_prop.n_int;   % number of lumen segments
 
-x_c = reshape(x(1 : n_c*9),9,[]); % [9, n_c]
-x_l = reshape(x(1 + n_c*9 : end),6,[]); % [6, n_l]
+x_c = reshape(x(1 : n_c*9),9,[]);        % [9, n_c]
+x_l = reshape(x(1 + n_c*9 : end),6,[]);  % [6, n_l]
 
+
+% read the constant parameters from input struct P
 Na_B = P.ConI.Na;
 K_B = P.ConI.K;
 Cl_B = P.ConI.Cl; %
@@ -71,12 +73,17 @@ p_CO = P.p_CO; % 1/s
 k_buf_p = P.buf.k_p; %/s
 k_buf_m = P.buf.k_m; %/mMs
 
-dwadt = zeros(1,n_l);
+% setup a vector to record the rate of change of lumen fluid flow
+dwAdt = zeros(1,n_l); 
 
+% setup the ode rate of change matrices
 dxcdt = zeros(size(x_c)); % [9,n_c]
 dxldt = zeros(size(x_l)); % [6,n_l]
 
+% loop through the cells to populate the rate of change for each cell/variable
 for i = 1:n_c
+    
+    % first, read all the cell specific parameters
     cell_struct = cell_prop{i};
     
     A_A = cell_struct.api_area;
@@ -94,6 +101,10 @@ for i = 1:n_c
     alpha_NKA_A = cell_struct.scaled_rates.NKA.alpha_A;
     alpha_NKA_B = cell_struct.scaled_rates.NKA.alpha_B;
     
+    L_B = cell_struct.scaled_rates.L_B; % um/s 
+    L_A = cell_struct.scaled_rates.L_A; % um/s 
+    
+    % read the cellular variables of this particular cell
     V_A   = x_c(1,i);
     V_B   = x_c(2,i);
     w_C   = x_c(3,i);
@@ -104,6 +115,7 @@ for i = 1:n_c
     H_C   = x_c(8,i);
     CO_C  = x_c(9,i);
     
+    % read the lumenal variables of all lumen segments this cell interface with
     loc_int = cell_struct.loc_int;
     
     Na_A  = x_l(1,loc_int);
@@ -115,13 +127,11 @@ for i = 1:n_c
     
     % water transport
     osm_c = chi_C./w_C*1e18; % osmolarity of cell due to proteins (chi)
-    L_B = cell_struct.scaled_rates.L_B; % um/s 
-    L_A = cell_struct.scaled_rates.L_A; % um/s 
     
     J_B = 1e-18*L_B.*V_w.*(Na_C + K_C + Cl_C + HCO_C + osm_c - Na_B - K_B - Cl_B - HCO_B - phi_B); % um/s 
     J_A = 1e-18*L_A.*V_w.*(Na_A + K_A + Cl_A + HCO_A + phi_A - Na_C - K_C - Cl_C - HCO_C - osm_c); % um/s [1, n_loc_int]
     dwdt = A_B * J_B - sum(A_A_int .* J_A); % um^3/s
-    dwadt(1,loc_int) = dwadt(1,loc_int) + A_A_int .* J_A; % um^3/s [1, n_loc_int]
+    dwAdt(1,loc_int) = dwAdt(1,loc_int) + A_A_int .* J_A; % um^3/s [1, n_loc_int]
     
     % CDF C02 Diffusion 
     J_CDF_A = p_CO * (CO_C - CO_A).* w_C .* A_A_int./A_A; % e-18 mol/s [1, n_loc_int]
@@ -210,29 +220,37 @@ for i = 1:n_c
     dxldt(6,loc_int) = dxldt(6,loc_int) + J_CDF_A./w_A - J_buf_A;
 end
 
-v = ones(1,n_l) * P.PSflow; % um^3/s volume flow rate of fluid out of each lumen compartment
-v_up = ones(1,n_l) * P.PSflow; % um^3/s volume flow rate of fluid into each lumen compartment
+% compute the fluid flow rate in the lumen
+v = ones(1,n_l) * P.PSflow; % um^3/s volume flow rate of fluid out of each lumen segment
+v_up = ones(1,n_l) * P.PSflow; % um^3/s volume flow rate of fluid into each lumen segment
 
-x_up = zeros(size(x_l)); % construct a matrix for the upstream apical concentration for each cell
-x_up(:,1) = cell2mat(struct2cell(P.ConP));
-
+% accumulate the fluid as secreted from cells along the lumen 
 for i=1:n_l
-    v(i) = v(i) + sum(dwadt(1,1:i));
+    v(i) = v(i) + sum(dwAdt(1,1:i));
 end
 
-if n_l>1 % if there are more than one intervals
+% construct a matrix to represent the upstream variable value for each lumen segment
+x_up = zeros(size(x_l)); 
+x_up(:,1) = cell2mat(struct2cell(P.ConP));
+
+% fill up the upstream flow rate(v_up)/variable(x_up) with downstream flow rate/variable
+if n_l>1 % if there are more than one lumen segment
     v_up(2:n_l) = v(1:n_l-1);
     x_up(:,2:n_l) = x_l(:,1:n_l-1);
 end
 
-v = v./A_L; % um/s convert volume flow rate to linear flow speed
-v_up = v_up./A_L; % um/s convert volume flow rate to linear flow speed
+% convert volume flow rate to linear flow speed
+v = v./A_L; % um/s 
+v_up = v_up./A_L; % um/s
 
+% 1D finite difference discretisation of the lumen, backward differences scheme
 for i = 1:6
     dxldt(i,:) = dxldt(i,:) + (v_up.*x_up(i,:) - v.*x_l(i,:))./L;
 end
 
+% flatten the matrix to a column vector
 dxdt = [dxcdt(:); dxldt(:)];
+
 % 
 % if ~displ
 %     hold on
@@ -250,6 +268,8 @@ dxdt = [dxcdt(:); dxldt(:)];
 %     plot(t,J_NHE_B*F*w_C*1e-9,'ok')
 % end
 
+
+% display for debugging and cross checking purposes
 if displ
     fprintf('initial P.S. flow rate: %2.2f  um3 \n',(v_up(1)*A_L)) % um^3/s
     fprintf('final P.S. flow rate:   %2.2f  um3 \n',(v(end)*A_L)) % um^3/s

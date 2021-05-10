@@ -1,5 +1,21 @@
 function M = mass(t, x, cell_prop, lumen_prop)
 
+% This function sets up the mass matrix M for the system of ODE
+% M_c [9,9] is the mass matrix of one cell
+% M_l [6,6] is the mass matrix of one lumenal segment
+% M is arranged as follows:
+% M = | M_c                            |
+%     |     M_c                        |
+%     |         M_c                    |
+%     |            ...                 |
+%     |                M_l             |
+%     |                    M_l         |
+%     |                        M_l     |
+%     |                            ... |
+%       _____________  ______________
+%            n_c              n_l
+
+
 n_c = length(cell_prop);
 n_l = lumen_prop.n_int;
 

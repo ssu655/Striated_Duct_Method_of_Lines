@@ -30,6 +30,7 @@ cell_geom = cell(1,n_cell);
 [face,~] = read_ply_custom(Files(1).name);
 labels = unique(face(:,4)); % array of unique face labels [api, bas, lat]
 
+% 2 variables to be updated with min and max z coordinate as reading mesh
 start_z = 10000;
 end_z = 0;
 
@@ -47,6 +48,8 @@ for i = 1:n_cell
     
     face_coord = zeros(sf(1),9); %[x1, y1, z1, x2, y2, z2, x3, y3, z3]
     face_area = zeros(sf(1),1);
+    
+    % loop through the faces to calculate area
     for j = 1:sf(1)
         face_coord(j,:) = reshape(vertex(face(j,1:3),:)',1,[]);
         A = face_coord(j,1:3)-face_coord(j,4:6);
@@ -85,19 +88,20 @@ for i = 1:n_cell
     
 end
 
-lumen_geom.L = L;
+lumen_geom.L = L; % segment length
 lumen_geom.start = start_z;
 lumen_geom.end = end_z;
 lumen_geom.length = end_z - start_z;
-n_int = ceil(lumen_geom.length / L);
+n_int = ceil(lumen_geom.length / L); % round up the division as the number of lumen segment
 lumen_geom.n_int = n_int;
 
-lumen_geom.segment = L*[0:(n_int)] + start_z;
+lumen_geom.segment = L*[0:(n_int)] + start_z; % [1, n_int+1] node positions at division
 
+% calculate lumen radius from mean apical vertex distances from 0 
 x = cell_geom{end}.face_coord(cell_geom{end}.api_idx,[1,2]);
 y = sqrt(x(:,1).^2 + x(:,2).^2);
 z = floor(mean(y));
-lumen_geom.radius = 4.0824829;%z; % um
+lumen_geom.radius = z; % um 4.0824829
 lumen_geom.volume = pi*lumen_geom.radius^2*L; % um^3
 
 end

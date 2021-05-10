@@ -1,7 +1,28 @@
 function x = setup_IC(Conc, cell_prop, lumen_prop)
 
-n_c = length(cell_prop);
-n_l = lumen_prop.n_int;
+% set up the initial condition to solve the system of ODE (f_ODE)
+
+% x is [1 ; 9 * n_c + 6 * n_l] 
+% 
+% x_c(1,:) V_A
+% x_c(2,:) V_B
+% x_c(3,:) w_C
+% x_c(4,:) Na_C
+% x_c(5,:) K_C
+% x_c(6,:) Cl_C
+% x_c(7,:) HCO_C
+% x_c(8,:) H_C
+% x_c(9,:) CO_C
+% 
+% x_l(1,:) Na_A
+% x_l(2,:) K_A
+% x_l(3,:) Cl_A
+% x_l(4,:) HCO_A
+% x_l(5,:) H_A
+% x_l(6,:) CO_A
+
+n_c = length(cell_prop);  % number of cells
+n_l = lumen_prop.n_int;   % number of lumen segments
 
 x_c = zeros(9, n_c);
 x_l = zeros(6, n_l);
