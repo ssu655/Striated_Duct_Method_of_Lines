@@ -52,12 +52,21 @@ x = setup_IC(Conc, cell_prop, lumen_prop);
 % f_ODE(1,x,P,cell_prop,lumen_prop,1);
 
 tspan = [0,50000];
-options = odeset('Mass', @(t,x) mass(t,x,cell_prop,lumen_prop), 'MassSingular', 'yes');
+
+% ===========================================
+% % run the version of ODE with mass matrix
+% tic
+% options = odeset('Mass', @(t,x) mass(t,x,cell_prop,lumen_prop), 'MassSingular', 'yes');
+% [t,y] = ode15s(@(t,y) f_ODE(t,y,P,cell_prop,lumen_prop,0), tspan, x, options);
+% toc
+
+% ==========================================
+% run the version of ODE without mass matrix
 tic
-[t,y] = ode15s(@(t,y) f_ODE(t,y,P,cell_prop,lumen_prop,0), tspan, x, options);
+[t,y] = ode15s(@(t,y) f_ODE_noMass(t,y,P,cell_prop,lumen_prop,0), tspan, x);
 toc
 
-f_ODE(1,x,P,cell_prop,lumen_prop,1);
+% f_ODE(1,x,P,cell_prop,lumen_prop,1);
 
 %% Sanity checks
 

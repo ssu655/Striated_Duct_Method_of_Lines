@@ -17,9 +17,8 @@ function [cell_geom, lumen_geom] = get_mesh_info(L)
 %             - radius
 %             - volume
 
-
 % add the path of the Duct_cells folder
-addpath('/Users/ssu655/Dropbox/PhD/method_of_lines_mesh/Duct_Cells')
+% addpath('/Users/ssu655/Dropbox/PhD/method_of_lines_mesh/Duct_Cells')
 addpath('C:\Users\lingm\Dropbox\PhD\method_of_lines_mesh\Duct_Cells')
 
 Files = dir('Duct_Cells/*.ply'); % a struct with ply file info
