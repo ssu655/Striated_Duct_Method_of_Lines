@@ -19,18 +19,28 @@ addpath('C:\Users\lingm\Dropbox\PhD\method_of_lines_mesh\Duct_Cells_new')
 % ptCloud = pcread('PL-Cell_001.ply');
 % pcshow(ptCloud)
 
-Files = dir('Duct_Cells_new/*.ply');
+filename = 'C:\Users\lingm\Dropbox\PhD\method_of_lines_mesh\mini_gland.ply';
+[cells,faces,vertices] = read_ply_custom(filename);%(Files(1).name);
+labels = unique(faces(:,4)); % array of unique face labels [api, bas, lat]
+n_cell = size(cells,1);
 
 figure 
 hold on 
 
-for i = 1:(length(Files))
-[face,vertex] = read_ply_custom(Files(i).name);
-
+for i = 1:n_cell
+    
+    vert_start = cells(i,2)+1;
+    vert_end = cells(i,2)+cells(i,1);
+    face_start = cells(i,4)+1;
+    face_end = cells(i,4)+cells(i,3);
+    
+    vertex = vertices([vert_start:vert_end],:);
+    face = faces([face_start:face_end],:);
+    face(:,1:3) = face(:,1:3) - vert_start + 1;
+    
 sf = size(face);   % face is a nf x 3 array
 sv = size(vertex); % vertex is a nv x 3 array
-
-labels = unique(face(:,4));
+labels = unique(face(:,4))
 
 api_idx = find(face(:,4) == labels(1));
 lat_idx = find(face(:,4) == labels(2));

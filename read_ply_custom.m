@@ -26,7 +26,7 @@
 %  Department of Mathematics, CUHK
 %  http://www.math.cuhk.edu.hk/~lmlui
 
-function [face,vertex,color] = read_ply_custom(filename)
+function [cells,face,vertex] = read_ply_custom(filename)
 
 fid = fopen(filename,'r');
 if( fid==-1 )
@@ -65,13 +65,22 @@ while (~feof(fid))
 		elseif strcmpi(tokens(2),'face')
 			nface = str2num(tokens{3});
 			stage = 'face';
+		elseif strcmpi(tokens(2),'duct_node')
+			ndnode = str2num(tokens{3});
+			stage = 'duct_node';
+		elseif strcmpi(tokens(2),'cell')
+			ncell = str2num(tokens{3});
+			stage = 'cell';
+		elseif strcmpi(tokens(2),'duct_segment')
+			ndseg = str2num(tokens{3});
+			stage = 'duct_segment';
 		end
 	elseif strcmpi(tokens(1), 'property')
 	end
 end
 
 if strcmpi(file_format, 'ascii')
-        [face,vertex,color] = read_ascii(fid, nvert, nface);
+        [cells,face,vertex] = read_ascii(fid, nvert, nface, ndnode, ndseg, ncell);
 %elseif strcmp(lower(file_format), 'binary_little_endian')
 %elseif strcmp(lower(file_format), 'binary_big_endian')
 else 
@@ -82,11 +91,99 @@ fclose(fid);
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function [face,vertex,color] = read_ascii(fid, nvert, nface)
+function [cells, face,vertex] = read_ascii(fid, nvert, nface, ndnode, ndseg, ncell)
 % read ASCII format ply file
-color = [];
 
-%read vertex info
+
+%% read duct node info
+tot_cnt = 0;
+cols = 0;
+A = [];
+
+tline = '';
+while (~feof(fid) && (isempty(tline) || tline(1) == '#'))
+	pos = ftell(fid);
+	tline = strtrim(fgets(fid));
+end
+C = regexp(tline,'\s+','split');
+% read columns of vertex line
+cols = size(C,2);
+%rewind to starting of the line 
+fseek(fid, pos,-1);
+%vertex and color line format string
+format = strcat(repmat('%f ', [1, cols]), '\n');
+
+%start reading number of duct node
+while (~feof(fid) && tot_cnt < cols*ndnode)
+    [A_,cnt] = fscanf(fid,format, cols*ndnode-tot_cnt);
+    tot_cnt = tot_cnt + cnt;
+    A = [A;A_];
+    skip_comment_blank_line(fid,1);
+end
+
+if tot_cnt~=cols*ndnode
+    warning('Problem in reading duct nodes. number of nodes doesnt match header.');
+end
+A = reshape(A, cols, tot_cnt/cols);
+duct_node = A' +1 ;% +1 for matlab indexing
+
+%% read duct segment
+tot_cnt = 0;
+A = [];
+tline = '';
+while (~feof(fid) && (isempty(tline) || tline(1) == '#'))
+	pos = ftell(fid);
+	tline = strtrim(fgets(fid));
+end
+C = regexp(tline,'\s+','split');
+cols = size(C,2);
+%rewind to starting of the line 
+fseek(fid, pos,-1);
+%vertex and color line format string (!!wrong at the moment!!!!!)
+format = strcat(repmat('%f ', [1, cols]), '\n');
+%start reading number of duct segment
+while (~feof(fid) && tot_cnt < cols*ndseg)
+    [A_,cnt] = fscanf(fid,format, cols*ndseg-tot_cnt);
+    tot_cnt = tot_cnt + cnt;
+    A = [A;A_];
+    skip_comment_blank_line(fid,1);
+end
+
+if tot_cnt~=cols*ndseg
+    warning('Problem in reading duct segment. number of segments doesnt match header.');
+end
+A = reshape(A, cols, tot_cnt/cols);
+duct_segment = A';
+
+%% read cell info
+tot_cnt = 0;
+A = [];
+tline = '';
+while (~feof(fid) && (isempty(tline) || tline(1) == '#'))
+	pos = ftell(fid);
+	tline = strtrim(fgets(fid));
+end
+C = regexp(tline,'\s+','split');
+cols = size(C,2);
+%rewind to starting of the line 
+fseek(fid, pos,-1);
+%vertex and color line format string (!!wrong at the moment!!!!!)
+format = strcat(repmat('%d ', [1, cols]), '\n');
+%start reading number of duct segment
+while (~feof(fid) && tot_cnt < cols*ncell)
+    [A_,cnt] = fscanf(fid,format, cols*ncell-tot_cnt);
+    tot_cnt = tot_cnt + cnt;
+    A = [A;A_];
+    skip_comment_blank_line(fid,1);
+end
+
+if tot_cnt~=cols*ncell
+    warning('Problem in reading cells. number of cells doesnt match header.');
+end
+A = reshape(A, cols, tot_cnt/cols);
+cells = A'; % 
+
+%% read vertex info
 tot_cnt = 0;
 cols = 0;
 A = [];
@@ -116,16 +213,10 @@ if tot_cnt~=cols*nvert
     warning('Problem in reading vertices. number of vertices doesnt match header.');
 end
 A = reshape(A, cols, tot_cnt/cols);
-vertex = A(1:3,:)';
+vertex = A';
 
-% extract vertex color	
-if cols == 6
-	color = A(4:6,:)';
-elseif cols > 6
-	color = A(4:7,:)';
-end
 
-%read face info
+%% read face info
 tot_cnt = 0;
 A = [];
 tline = '';
@@ -135,11 +226,11 @@ while (~feof(fid) && (isempty(tline) || tline(1) == '#'))
 end
 C = regexp(tline,'\s+','split');
 % read columns of face line
-nvert_f = str2num(C{1});
-cols = nvert_f+1;
-if isempty(color)
+% nvert_f = str2num(C{1});
+% cols = nvert_f+1;
+% if isempty(color)
 	cols = size(C,2);
-end
+% end
 %rewind to starting of the line 
 fseek(fid, pos,-1);
 %face and color line format string
@@ -159,11 +250,6 @@ end
 A = reshape(A, cols, tot_cnt/cols);
 face = A'+1;
 
-% extract face color
-if cols > nvert_f+1
-	color = A(nvert_f+2:cols,:)';
-end
-color = color*1.0/255;
 
 function [tline] = skip_comment_blank_line(fid,rewind)
 % skip empty and comment lines

@@ -19,23 +19,31 @@ function [cell_geom, lumen_geom] = get_mesh_info(L)
 
 % add the path of the Duct_cells folder
 % addpath('/Users/ssu655/Dropbox/PhD/method_of_lines_mesh/Duct_Cells')
-addpath('C:\Users\lingm\Dropbox\PhD\method_of_lines_mesh\Duct_Cells')
+% addpath('C:\Users\lingm\Dropbox\PhD\method_of_lines_mesh\Duct_Cells')
 
-Files = dir('Duct_Cells/*.ply'); % a struct with ply file info
-n_cell = length(Files)-1;
-% index_i = [28,32];
-cell_geom = cell(1,n_cell);
+% Files = dir('Duct_Cells/*.ply'); % a struct with ply file info
+% n_cell = length(Files)-1;
+% % index_i = [28,32];
+% cell_geom = cell(1,n_cell);
 
-[face,~] = read_ply_custom(Files(1).name);
-labels = unique(face(:,4)); % array of unique face labels [api, bas, lat]
-
+filename = 'C:\Users\lingm\Dropbox\PhD\method_of_lines_mesh\mini_gland.ply';
+[cells,faces,vertices] = read_ply_custom(filename);%(Files(1).name);
+labels = unique(faces(:,4)); % array of unique face labels [api, bas, lat]
+n_cell = size(cells,1);
 % 2 variables to be updated with min and max z coordinate as reading mesh
 start_z = 10000;
 end_z = 0;
 
 for i = 1:n_cell 
     
-    [face,vertex] = read_ply_custom(Files(i).name);
+    vert_start = cells(i,2)+1;
+    vert_end = cells(i,2)+cells(i,1);
+    face_start = cells(i,4)+1;
+    face_end = cells(i,4)+cells(i,3);
+    
+    vertex = vertices([vert_start:vert_end],:);
+    face = faces([face_start:face_end],:);
+    face(:,1:3) = face(:,1:3) - vert_start + 1;
     
     sf = size(face);
     

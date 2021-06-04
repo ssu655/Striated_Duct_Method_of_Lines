@@ -179,6 +179,22 @@ ylabel('mM')
 ylim([1.27,1.29])
 title('Lumenal Concentration')
 
+% a(27:40) = [1:0.5:7.5]+a(27:40)
+% a(35:40) = [1:0.5:3.5]+a(35:40)
+% a(38:40) = [1:0.5:2]+a(38:40)
+% b=a/50.03
+% figure
+% plot(b, y_l(1,:),'LineWidth',2)
+% plot(b, y_l(2,:),'LineWidth',2)
+% plot(b, y_l(3,:),'LineWidth',2)
+% plot(b, y_l(1,:),'LineWidth',2)
+% hold on
+% plot(b, y_l(2,:),'LineWidth',2)
+% plot(b, y_l(3,:),'LineWidth',2)
+% legend('Na','K','Cl')
+% ylim([0,150])
+% ylabel('Concentration of Ions (mM)')
+% title('Parotid Gland Duct Model')
 % 
 % yy_c = y(:,[1 : n_c*9]);
 % yy_l = y(:,[n_c*9+1:end]);
