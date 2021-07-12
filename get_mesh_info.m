@@ -25,8 +25,9 @@ function [cell_geom, lumen_geom] = get_mesh_info(L)
 % n_cell = length(Files)-1;
 % % index_i = [28,32];
 % cell_geom = cell(1,n_cell);
-
-filename = 'C:\Users\lingm\Dropbox\PhD\method_of_lines_mesh\mini_gland.ply';
+%   mini_gland_slurm-20373309_1.ply
+% filename = '/Users/ssu655/Dropbox/PhD/method_of_lines_mesh/mini_gland_slurm-20373309_1.ply';
+filename = 'C:\Users\lingm\Dropbox\PhD\method_of_lines_mesh\mini_gland_intercalated_1.ply';
 [cells,faces,vertices] = read_ply_custom(filename);%(Files(1).name);
 labels = unique(faces(:,4)); % array of unique face labels [api, bas, lat]
 n_cell = size(cells,1);

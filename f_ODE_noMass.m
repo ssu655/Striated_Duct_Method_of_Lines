@@ -271,48 +271,48 @@ dxdt = [dxcdt(:); dxldt(:)];
 
 % display for debugging and cross checking purposes
 if displ
-    fprintf('initial P.S. flow rate: %2.2f  um3 \n',(v_up(1)*A_L)) % um^3/s
-    fprintf('final P.S. flow rate:   %2.2f  um3 \n',(v(end)*A_L)) % um^3/s
-    fprintf('percentage:             %2.2f  ',(v(end)-v_up(1))/v_up(1)*100)
-    fprintf('\n')
-    fprintf('I_ENaC:       %.8d nA  \n',I_ENaC*1e-6)
-    fprintf('I_BK:         %.8d nA  \n',I_BK*1e-6)
-    fprintf('I_K_B:        %.8d nA  \n',I_K_B*1e-6)
-    fprintf('J_NKA_A:      %.8d nA  \n',J_NKA_A*F*1e-3)
-    fprintf('J_NKA_B:      %.8d nA  \n',J_NKA_B*F*1e-3)
-    fprintf('I_CFTR:       %.8d nA  \n',I_CFTR*1e-6)
-    fprintf('I_CFTR_B:     %.8d nA  \n',I_CFTR_B*1e-6)
-    fprintf('J_AE2_A:      %.8d nA  \n',J_AE2_A.*F.*1e-9)
-    fprintf('J_AE2_B:      %.8d nA  \n',J_AE2_B.*F.*1e-9)
-    fprintf('J_NBC:        %.8d nA  \n',J_NBC.*F.*1e-9)
-    fprintf('J_NHE_A:      %.8d nA  \n',J_NHE_A.*F.*1e-9)
-    fprintf('J_NHE_B:      %.8d nA  \n',J_NHE_B.*F.*1e-9)
-    fprintf('J_CDF_A:      %.8d nA  \n',J_CDF_A.*F.*1e-9)
-    fprintf('J_CDF_B:      %.8d nA  \n',J_CDF_B.*F.*1e-9)
-    fprintf('J_buf_A:      %.8d nA  \n',J_buf_A.*F.*w_A.*1e-9)
-    fprintf('J_buf_C:      %.8d nA  \n',J_buf_C.*F.*1e-9)
-    fprintf('J_A:          %.8d nA  \n',J_A)
-    fprintf('J_B:          %.8d nA  \n',J_B)
-    fprintf(' \n')
-    fprintf('V_A_K:     %.8d mV \n', V_A_K)
-    fprintf('V_B_K:     %.8d mV \n', V_B_K)
-    fprintf('V_A_Cl:    %.8d mV \n', V_A_Cl)
-    fprintf('V_A_Na:    %.8d mV \n', V_A_Na)
-    fprintf('V_A:       %.8d mV \n', x_c(1,:))
-    fprintf('V_B:       %.8d mV \n', x_c(2,:))
-    fprintf('V_T:       %.8d mV \n', V_T)
-    fprintf(' \n')
-    fprintf('V_P_Na:    %.8d mV \n', V_P_Na)
-    fprintf('V_P_K:     %.8d mV \n', V_P_K)
-    fprintf('V_P_Cl:    %.8d mV \n', V_P_Cl)
-    fprintf('I_P_Na:    %.8d nA \n',I_P_Na*1e-6)
-    fprintf('I_P_K:     %.8d nA \n',I_P_K*1e-6)
-    fprintf('I_P_Cl:    %.8d nA \n',I_P_Cl*1e-6)   
-    fprintf(' \n') 
-    fprintf('Na flux A: %.8d nA \n',I_ENaC*1e-6 - J_NHE_A*F*1e-9 + I_P_Na*1e-6 + 3*J_NKA_A*1e-3*F)
-    fprintf('K flux A:  %.8d nA \n',I_BK*1e-6 + I_P_K*1e-6 - 2*J_NKA_A*1e-3*F)
-    fprintf('Cl flux A: %.8d nA \n', I_P_Cl*1e-6 + I_CFTR*1e-6 + J_AE2_A*F*1e-9)
-    fprintf('HC flux A: %.8d nA \n', I_CFTR_B*1e-6 - J_AE2_A*F*1e-9 - J_buf_A.*F.*w_A.*1e-9)
+%     fprintf('initial P.S. flow rate: %2.2f  um3 \n',(v_up(1)*A_L)) % um^3/s
+%     fprintf('final P.S. flow rate:   %2.2f  um3 \n',(v(end)*A_L)) % um^3/s
+%     fprintf('percentage:             %2.2f  ',(v(end)-v_up(1))/v_up(1)*100)
+%     fprintf('\n')
+%     fprintf('I_ENaC:       %.8d nA  \n',I_ENaC*1e-6)
+%     fprintf('I_BK:         %.8d nA  \n',I_BK*1e-6)
+%     fprintf('I_K_B:        %.8d nA  \n',I_K_B*1e-6)
+%     fprintf('J_NKA_A:      %.8d nA  \n',J_NKA_A*F*1e-3)
+%     fprintf('J_NKA_B:      %.8d nA  \n',J_NKA_B*F*1e-3)
+%     fprintf('I_CFTR:       %.8d nA  \n',I_CFTR*1e-6)
+%     fprintf('I_CFTR_B:     %.8d nA  \n',I_CFTR_B*1e-6)
+%     fprintf('J_AE2_A:      %.8d nA  \n',J_AE2_A.*F.*1e-9)
+%     fprintf('J_AE2_B:      %.8d nA  \n',J_AE2_B.*F.*1e-9)
+%     fprintf('J_NBC:        %.8d nA  \n',J_NBC.*F.*1e-9)
+%     fprintf('J_NHE_A:      %.8d nA  \n',J_NHE_A.*F.*1e-9)
+%     fprintf('J_NHE_B:      %.8d nA  \n',J_NHE_B.*F.*1e-9)
+%     fprintf('J_CDF_A:      %.8d nA  \n',J_CDF_A.*F.*1e-9)
+%     fprintf('J_CDF_B:      %.8d nA  \n',J_CDF_B.*F.*1e-9)
+%     fprintf('J_buf_A:      %.8d nA  \n',J_buf_A.*F.*w_A.*1e-9)
+%     fprintf('J_buf_C:      %.8d nA  \n',J_buf_C.*F.*1e-9)
+%     fprintf('J_A:          %.8d nA  \n',J_A)
+%     fprintf('J_B:          %.8d nA  \n',J_B)
+%     fprintf(' \n')
+%     fprintf('V_A_K:     %.8d mV \n', V_A_K)
+%     fprintf('V_B_K:     %.8d mV \n', V_B_K)
+%     fprintf('V_A_Cl:    %.8d mV \n', V_A_Cl)
+%     fprintf('V_A_Na:    %.8d mV \n', V_A_Na)
+%     fprintf('V_A:       %.8d mV \n', x_c(1,:))
+%     fprintf('V_B:       %.8d mV \n', x_c(2,:))
+%     fprintf('V_T:       %.8d mV \n', V_T)
+%     fprintf(' \n')
+%     fprintf('V_P_Na:    %.8d mV \n', V_P_Na)
+%     fprintf('V_P_K:     %.8d mV \n', V_P_K)
+%     fprintf('V_P_Cl:    %.8d mV \n', V_P_Cl)
+%     fprintf('I_P_Na:    %.8d nA \n',I_P_Na*1e-6)
+%     fprintf('I_P_K:     %.8d nA \n',I_P_K*1e-6)
+%     fprintf('I_P_Cl:    %.8d nA \n',I_P_Cl*1e-6)   
+%     fprintf(' \n') 
+%     fprintf('Na flux A: %.8d nA \n',I_ENaC*1e-6 - J_NHE_A*F*1e-9 + I_P_Na*1e-6 + 3*J_NKA_A*1e-3*F)
+%     fprintf('K flux A:  %.8d nA \n',I_BK*1e-6 + I_P_K*1e-6 - 2*J_NKA_A*1e-3*F)
+%     fprintf('Cl flux A: %.8d nA \n', I_P_Cl*1e-6 + I_CFTR*1e-6 + J_AE2_A*F*1e-9)
+%     fprintf('HC flux A: %.8d nA \n', I_CFTR_B*1e-6 - J_AE2_A*F*1e-9 - J_buf_A.*F.*w_A.*1e-9)
     
     
 %     CellPos = zeros(1,length(cell_prop));
@@ -320,10 +320,10 @@ if displ
 %         CellPos(i) = cell_prop{i}.centroid(3);
 %     end
 %     [CellPos,I] = sort(CellPos);
-%     IntPos = lumen_prop.segment(1:end-1);
+    IntPos = lumen_prop.segment(1:end-1);
 % 
-%     
-%     figure
+    figure
+    plot(IntPos, v*A_L);
 %     subplot(4,4,1)
 %     plot(IntPos,V_A_Na)
 %     hold on

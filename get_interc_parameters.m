@@ -1,4 +1,4 @@
-function P = get_parameters(Conc,PSflow)
+function P = get_interc_parameters(Conc,PSflow)
 
 % The nested structure of P is as follows:
 %
@@ -49,7 +49,7 @@ P.ConP = Conc.PS;
 P.PSflow = PSflow;
 
 % apical channels conductances 
-P.G_ENaC = 2.5;
+P.G_ENaC = 0.3;
 
 P.G_CFTR = 10;
 
@@ -60,7 +60,7 @@ P.G_K_B = 0.5;
 
 % apical or basolateral transporter rates
 P.NBC = struct;
-P.NBC.alpha = 100;
+P.NBC.alpha = 0.001;
 P.NBC.k5_p = -6e-1; % 1/s
 P.NBC.k5_m = 1e8; % 1/s
 P.NBC.k6_p = 1e8; % 1/s
@@ -92,19 +92,19 @@ P.buf.k_m = 20; %/mMs
 
 % sodium potassium pump rates
 P.NKA = struct;
-P.NKA.alpha_A = 0.7e-8; % mol/m2
-P.NKA.alpha_B = 0.9e-8; % mol/m2
+P.NKA.alpha_A = 0.1e-8; % mol/m2
+P.NKA.alpha_B = 0.5e-8; % mol/m2
 
 P.NKA.r = 1.305e-3; %mM-3s-1
 P.NKA.beta = 0.647e-4; %mM-1
 
 % paracellular conductances
-P.G_P_Na = 0.1; %S/m2
-P.G_P_K = 1; %S/m2
-P.G_P_Cl = 1.5; %S/m2
+P.G_P_Na = 0.4; %S/m2
+P.G_P_K = 2; %S/m2
+P.G_P_Cl = 2; %S/m2
 
 % water permeability across membranes
-P.L_A = 0;%0.6e1; % um/s
+P.L_A = 0.6e1; % um/s
 P.L_B = 0.6e1; % um/s
 
 % universal physical constants

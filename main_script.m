@@ -31,7 +31,8 @@ Conc.LIC = cell2struct(num2cell(LIC),fields);
 
 %% Parameter structure setup
 
-P = get_parameters(Conc,PSflow);
+P = get_interc_parameters(Conc,PSflow);
+% P = get_striat_parameters(Conc,PSflow);
 
 %% Get Mesh Info
 
