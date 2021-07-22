@@ -1,6 +1,7 @@
-function dxdt = f_ODE_noMass(t,x,P,cell_prop,lumen_prop,displ)
+function dxdt = f_ODE_noMass(t,x,P_list,seg_prop,displ)
 
-% x is [1 ; 9 * n_c + 6 * n_l] 
+% x is a concatenation of vectors of shape: [1 ; 9 * n_c + 6 * n_l] 
+% one for each duct mesh segment
 % 
 % x_c(1,:) V_A
 % x_c(2,:) V_B
@@ -19,237 +20,273 @@ function dxdt = f_ODE_noMass(t,x,P,cell_prop,lumen_prop,displ)
 % x_l(5,:) H_A
 % x_l(6,:) CO_A
 
-n_c = length(cell_prop);  % number of cells
-n_l = lumen_prop.n_int;   % number of lumen segments
 
-x_c = reshape(x(1 : n_c*9),9,[]);        % [9, n_c]
-x_l = reshape(x(1 + n_c*9 : end),6,[]);  % [6, n_l]
+n_seg = size(seg_prop,2);
+dxdt = cell(1, n_seg); % allocate variable for dxdt of each duct mesh segment
 
+for j = 1:n_seg
+    
+    % retrive the cell and lumen properties of the mesh segment
+    P = P_list{j};
+    cell_prop = seg_prop{j}.cell_prop;
+    lumen_prop = seg_prop{j}.lumen_prop;
+    n_c = length(cell_prop);  % number of cells
+    n_l = lumen_prop.n_int;   % number of lumen segments
+    
+    % split x for the variables of the particular segment
+    x_c = reshape(x(1 : n_c*9),9,[]);        % [9, n_c]
+    x_l = reshape(x(1 + n_c*9 : n_c*9 + n_l*6),6,[]);  % [6, n_l]
+    x = x(1 + n_c*9 + n_l*6:end);
+    
+    % read the constant parameters from input struct P
+    Na_B = P.ConI.Na;
+    K_B = P.ConI.K;
+    Cl_B = P.ConI.Cl; %
+    HCO_B = P.ConI.HCO; %
+    H_B = P.ConI.H; % interstitium pH = 7.35
+    CO_B = P.ConI.CO;
+    
+    R = P.R; % J/mol/K
+    T = P.T; % K
+    F = P.F;% C/mol
+    
+    V_w = P.V_w; % um^3/mol
+    w_A = lumen_prop.volume;
+    L = lumen_prop.L;
+    A_L = lumen_prop.X_area;
+    chi_C = P.chi_C; % mol
+    phi_A = P.phi_A; % mol per lumen interval volumn
+    phi_B = P.phi_B; % mM
+    
+    alpha_NHE_A = P.NHE.alpha_A;
+    alpha_NHE_B = P.NHE.alpha_B;
+    k1_p = P.NHE.k1_p; % 1/s
+    k1_m = P.NHE.k1_m; % 1/s
+    k2_p = P.NHE.k2_p; % 1/s
+    k2_m = P.NHE.k2_m; % 1/s
+    
+    alpha_AE2_A = P.AE2.alpha_A;
+    alpha_AE2_B = P.AE2.alpha_B;
+    k3_p = P.AE2.k3_p; % 1/s
+    k3_m = P.AE2.k3_m; % 1/s
+    k4_p = P.AE2.k4_p; % 1/s
+    k4_m = P.AE2.k4_m; % 1/s
+    
+    alpha_NBC = P.NBC.alpha;
+    k5_p = P.NBC.k5_p; % 1/s
+    k5_m = P.NBC.k5_m; % 1/s
+    k6_p = P.NBC.k6_p; % 1/s
+    k6_m = P.NBC.k6_m; % 1/s
+    
+    r_NKA = P.NKA.r; % mM-3s-1
+    beta_NKA = P.NKA.beta; % mM-1
+    
+    p_CO = P.p_CO; % 1/s
+    k_buf_p = P.buf.k_p; %/s
+    k_buf_m = P.buf.k_m; %/mMs
+    
+    % setup a vector to record the rate of change of lumen fluid flow
+    dwAdt = zeros(1,n_l);
+    
+    % setup the ode rate of change matrices
+    dxcdt = zeros(size(x_c)); % [9,n_c]
+    dxldt = zeros(size(x_l)); % [6,n_l]
+    
+    % loop through the cells to populate the rate of change for each cell/variable
+    for i = 1:n_c
+        
+        % first, read all the cell specific parameters
+        cell_struct = cell_prop{i};
+        
+        A_A = cell_struct.api_area;
+        A_B = cell_struct.baslat_area;
+        A_A_int = cell_struct.api_area_int;
+        
+        G_ENaC = cell_struct.scaled_rates.G_ENaC;
+        G_CFTR = cell_struct.scaled_rates.G_CFTR;
+        G_BK   = cell_struct.scaled_rates.G_BK;
+        G_K_B  = cell_struct.scaled_rates.G_K_B;
+        G_P_Na = cell_struct.scaled_rates.G_P_Na;
+        G_P_K  = cell_struct.scaled_rates.G_P_K;
+        G_P_Cl = cell_struct.scaled_rates.G_P_Cl;
+        
+        alpha_NKA_A = cell_struct.scaled_rates.NKA.alpha_A;
+        alpha_NKA_B = cell_struct.scaled_rates.NKA.alpha_B;
+        
+        L_B = cell_struct.scaled_rates.L_B; % um/s
+        L_A = cell_struct.scaled_rates.L_A; % um/s
+        
+        % read the cellular variables of this particular cell
+        V_A   = x_c(1,i);
+        V_B   = x_c(2,i);
+        w_C   = x_c(3,i);
+        Na_C  = x_c(4,i);
+        K_C   = x_c(5,i);
+        Cl_C  = x_c(6,i);
+        HCO_C = x_c(7,i);
+        H_C   = x_c(8,i);
+        CO_C  = x_c(9,i);
+        
+        % read the lumenal variables of all lumen segments this cell interface with
+        loc_int = cell_struct.loc_int;
+        
+        Na_A  = x_l(1,loc_int);
+        K_A   = x_l(2,loc_int);
+        Cl_A  = x_l(3,loc_int);
+        HCO_A = x_l(4,loc_int);
+        H_A   = x_l(5,loc_int);
+        CO_A  = x_l(6,loc_int);
+        
+        % water transport
+        osm_c = chi_C./w_C*1e18; % osmolarity of cell due to proteins (chi)
+        
+        J_B = 1e-18*L_B.*V_w.*(Na_C + K_C + Cl_C + HCO_C + osm_c - Na_B - K_B - Cl_B - HCO_B - phi_B); % um/s
+        J_A = 1e-18*L_A.*V_w.*(Na_A + K_A + Cl_A + HCO_A + phi_A - Na_C - K_C - Cl_C - HCO_C - osm_c); % um/s [1, n_loc_int]
+        dwdt = A_B * J_B - sum(A_A_int .* J_A); % um^3/s
+        dwAdt(1,loc_int) = dwAdt(1,loc_int) + A_A_int .* J_A; % um^3/s [1, n_loc_int]
+        
+        % CDF C02 Diffusion
+        J_CDF_A = p_CO * (CO_C - CO_A).* w_C .* A_A_int./A_A; % e-18 mol/s [1, n_loc_int]
+        J_CDF_B = p_CO * (CO_C - CO_B).* w_C; % e-18 mol/s
+        
+        % buf CO2 buffering
+        J_buf_C = (k_buf_p*CO_C - k_buf_m.*HCO_C.*H_C).* w_C; % e-18 mol/s
+        J_buf_A =  k_buf_p*CO_A - k_buf_m.*HCO_A.*H_A; %mM/s [1,n_loc_int]
+        
+        % NHE
+        J_NHE_A = alpha_NHE_A*(k1_p*k2_p*Na_A.*H_C-k1_m*k2_m*Na_C.*H_A)./(k1_p*Na_A+k2_p*H_C+k1_m*H_A+k2_m*Na_C).*w_C.* A_A_int./A_A; % e-18 mol/s [1,n_loc_int]
+        J_NHE_B = alpha_NHE_B*(k1_p*k2_p*Na_B *H_C-k1_m*k2_m*Na_C *H_B)./(k1_p*Na_B+k2_p*H_C+k1_m*H_B+k2_m*Na_C).*w_C; % e-18 mol/s
+        
+        % AE2
+        J_AE2_A = alpha_AE2_A*(k3_p*k4_p*Cl_A.*HCO_C - k3_m*k4_m*Cl_C.*HCO_A)./(k3_p*Cl_A+k4_p*HCO_C+k3_m*HCO_A+k4_m*Cl_C).*w_C.* A_A_int./A_A; % e-18 mol/s [1,n_loc_int]
+        J_AE2_B = alpha_AE2_B*(k3_p*k4_p*Cl_B.*HCO_C - k3_m*k4_m*Cl_C.*HCO_B)./(k3_p*Cl_B+k4_p*HCO_C+k3_m*HCO_B+k4_m*Cl_C).*w_C; % e-18 mol/s
+        
+        % NBC Basolateral
+        J_NBC = alpha_NBC.*(k5_p*k6_p*Na_C.*HCO_C-k5_m*k6_m*Na_B*HCO_B)./(k5_p.*Na_C.*HCO_C+k6_p*k5_m+k6_m*Na_B*HCO_B).*w_C; % e-18 mol/s
+        
+        % CFTR Apical
+        V_A_Cl = 1e3*R*T/(-1*F).*log(Cl_A./Cl_C); % mV [1,n_loc_int]
+        I_CFTR = G_CFTR .* A_A_int .* (V_A - V_A_Cl); % e-6 nA [1,n_loc_int]
+        
+        % CFTR_B Apical
+        V_A_HCO = 1e3*R*T/((-1)*F).*log(HCO_A./HCO_C); % mV [1,n_loc_int]
+        I_CFTR_B = 0.25 * G_CFTR .* A_A_int .* (V_A - V_A_HCO); % e-6 nA [1,n_loc_int]
+        
+        % I_BK Apical
+        V_A_K = 1e3*R*T/F.*log(K_A./K_C); % mV  [1,n_loc_int]
+        I_BK = G_BK .* A_A_int .* (V_A - V_A_K); % e-6 nA
+        
+        % I_K_B Basolateral
+        V_B_K = 1e3*R*T/F.*log(K_B./K_C); % mV
+        I_K_B = G_K_B * A_B .* (V_B - V_B_K); % e-6 nA
+        
+        % ENaC Apical
+        V_A_Na = 1e3*R*T/F*log(Na_A./Na_C); % mV  [1,n_loc_int]
+        I_ENaC = G_ENaC .* A_A_int .* (V_A - V_A_Na); % e-6 nA
+        
+        % NaKATPase, NKA
+        J_NKA_A = A_A_int .* alpha_NKA_A * r_NKA .*(K_A.^2.*Na_C.^3)./(K_A.^2+beta_NKA*Na_C.^3); % 10^-12 mol/s [1,n_loc_int]
+        J_NKA_B = A_B .* alpha_NKA_B * r_NKA .*(K_B.^2.*Na_C.^3)./(K_B.^2+beta_NKA*Na_C.^3); % 10^-12 mol/s
+        
+        
+        % Paracellular currents
+        V_T      = V_A - V_B; % mV
+        V_P_Na   = 1e3*R*T/F.*log(Na_A/Na_B); % mV [1,n_loc_int]
+        V_P_K    = 1e3*R*T/F.*log(K_A/K_B); % mV [1,n_loc_int]
+        V_P_Cl   = 1e3*R*T/(-F).*log(Cl_A/Cl_B); % mV [1,n_loc_int]
+        I_P_Na   = G_P_Na .* A_A_int .* (V_T - V_P_Na); % e-6 nA [1,n_loc_int]
+        I_P_K    = G_P_K .* A_A_int .* (V_T - V_P_K); % e-6 nA [1,n_loc_int]
+        I_P_Cl   = G_P_Cl .* A_A_int .* (V_T - V_P_Cl); % e-6 nA [1,n_loc_int]
+        
+        
+        % V_A e-15 c/s
+        dxcdt(1,i) = -(sum(F*J_NKA_A*1e3 + I_ENaC + I_BK + I_CFTR + I_CFTR_B + I_P_Na + I_P_K + I_P_Cl));
+        % V_B e-15 c/s
+        dxcdt(2,i) = -(F*J_NKA_B*1e3 + I_K_B - sum(I_P_Na + I_P_K + I_P_Cl));
+        % w_C um^3
+        dxcdt(3,i) = dwdt;
+        % Na_C mM/s
+        dxcdt(4,i) = -dwdt*Na_C/w_C + 1e3*(-sum(I_ENaC)./(F*w_C)) - 1e6*(3*(J_NKA_B+sum(J_NKA_A))/w_C) + J_NBC/w_C + sum(J_NHE_A)/w_C + J_NHE_B/w_C;
+        % K_C mM/s
+        dxcdt(5,i) = -dwdt*K_C/w_C + 1e3*(-sum(I_BK)./(F*w_C) - I_K_B./(F*w_C)) + 1e6*(2*(J_NKA_B+sum(J_NKA_A))/w_C);
+        % Cl_C mM/s
+        dxcdt(6,i) = -dwdt*Cl_C/w_C + 1e3*(sum(I_CFTR)./(F*w_C)) + sum(J_AE2_A)/w_C + J_AE2_B/w_C;
+        % HCO_C mM/s
+        dxcdt(7,i) = -dwdt*HCO_C/w_C + 1e3*(sum(I_CFTR_B)./(F*w_C)) + J_NBC/w_C - sum(J_AE2_A)/w_C - J_AE2_B/w_C + J_buf_C/w_C;
+        % H_C mM/s
+        dxcdt(8,i) = -dwdt*H_C/w_C - sum(J_NHE_A)/w_C - J_NHE_B/w_C + J_buf_C/w_C;
+        % CO_C mM/s
+        dxcdt(9,i) = -dwdt*CO_C/w_C - sum(J_CDF_A)/w_C - J_CDF_B/w_C - J_buf_C/w_C;
+        
+        % Na_A mM/s
+        dxldt(1,loc_int) = dxldt(1,loc_int) + 1e6*(3*J_NKA_A./w_A) + 1e3*(I_ENaC./(F*w_A)) + 1e3*(I_P_Na./(F*w_A)) - J_NHE_A./w_A;
+        % K_A mM/s
+        dxldt(2,loc_int) = dxldt(2,loc_int) - 1e6*(2*J_NKA_A./w_A) + 1e3*(I_BK./(F*w_A)) + 1e3*(I_P_K./(F*w_A));
+        % Cl_A mM/s
+        dxldt(3,loc_int) = dxldt(3,loc_int) + 1e3*(-I_CFTR./(F*w_A)) + 1e3*(-I_P_Cl./(F*w_A)) - J_AE2_A./w_A;
+        % HCO_A mM/s
+        dxldt(4,loc_int) = dxldt(4,loc_int) + 1e3*(-I_CFTR_B./(F*w_A)) + J_AE2_A./w_A + J_buf_A;
+        % H_A mM/s
+        dxldt(5,loc_int) = dxldt(5,loc_int) + J_NHE_A./w_A + J_buf_A;
+        % CO_A mM/s
+        dxldt(6,loc_int) = dxldt(6,loc_int) + J_CDF_A./w_A - J_buf_A;
+    end
+    
+    % construct a matrix to represent the upstream concentration values for each lumen segment
+    x_up = zeros(size(x_l));
+    
+    if j == 1 % first duct segment, use primary saliva for fluid flow in lumen
+        
+        % compute the fluid flow rate in the lumen
+        v = ones(1,n_l) * P.PSflow; % um^3/s volume flow rate of fluid out of each lumen segment
+        v_up = ones(1,n_l) * P.PSflow; % um^3/s volume flow rate of fluid into each lumen segment
+        
+        % the upstream variable value for the first lumen segment
+        x_up(:,1) = cell2mat(struct2cell(P.ConP));
+        if displ
+            figure
+            plot(dwAdt)
+            title("Fluid secreted along intercalated duct")
+            ylabel("volume um^3/s")
+        end
+        
+    else % subsequent duct segment, use output of previous duct segment for fluid flow and concentrations
+        v = ones(1,n_l) * (P.PSflow + seg_V_out); % um^3/s
+        v_up = ones(1,n_l) * (P.PSflow + seg_V_out); % um^3/s 
+        
+        x_up(:,1) = seg_x_l_out;
+        
+    end
+    
+    % accumulate the fluid as secreted from cells along the lumen
+    for i=1:n_l
+        v(i) = v(i) + sum(dwAdt(1,1:i));
+    end
+    
+    % record the fluid flow rate and concentration values in the last lumen segment for the next
+    seg_V_out = v(end);
+    seg_x_l_out = x_l(:,end);
+    
+    % fill up the upstream flow rate(v_up)/variable(x_up) with downstream flow rate/variable
+    if n_l>1 % if there are more than one lumen segment
+        v_up(2:n_l) = v(1:n_l-1);
+        x_up(:,2:n_l) = x_l(:,1:n_l-1);
+    end
+    
+    % convert volume flow rate to linear flow speed
+    v = v./A_L; % um/s
+    v_up = v_up./A_L; % um/s
+    
+    % 1D finite difference discretisation of the lumen, backward differences scheme
+    for i = 1:6
+        dxldt(i,:) = dxldt(i,:) + (v_up.*x_up(i,:) - v.*x_l(i,:))./L;
+    end
 
-% read the constant parameters from input struct P
-Na_B = P.ConI.Na;
-K_B = P.ConI.K;
-Cl_B = P.ConI.Cl; %
-HCO_B = P.ConI.HCO; % 
-H_B = P.ConI.H; % interstitium pH = 7.35
-CO_B = P.ConI.CO;
-
-R = P.R; % J/mol/K
-T = P.T; % K
-F = P.F;% C/mol
-
-V_w = P.V_w; % um^3/mol
-w_A = lumen_prop.volume;
-L = lumen_prop.L;
-A_L = lumen_prop.X_area;
-chi_C = P.chi_C; % mol
-phi_A = P.phi_A; % mol per lumen interval volumn 
-phi_B = P.phi_B; % mM
-
-alpha_NHE_A = P.NHE.alpha_A;
-alpha_NHE_B = P.NHE.alpha_B;
-k1_p = P.NHE.k1_p; % 1/s
-k1_m = P.NHE.k1_m; % 1/s
-k2_p = P.NHE.k2_p; % 1/s
-k2_m = P.NHE.k2_m; % 1/s
-
-alpha_AE2_A = P.AE2.alpha_A;
-alpha_AE2_B = P.AE2.alpha_B;
-k3_p = P.AE2.k3_p; % 1/s
-k3_m = P.AE2.k3_m; % 1/s
-k4_p = P.AE2.k4_p; % 1/s
-k4_m = P.AE2.k4_m; % 1/s
-
-alpha_NBC = P.NBC.alpha;
-k5_p = P.NBC.k5_p; % 1/s
-k5_m = P.NBC.k5_m; % 1/s
-k6_p = P.NBC.k6_p; % 1/s
-k6_m = P.NBC.k6_m; % 1/s
-
-r_NKA = P.NKA.r; % mM-3s-1
-beta_NKA = P.NKA.beta; % mM-1
-
-p_CO = P.p_CO; % 1/s 
-k_buf_p = P.buf.k_p; %/s
-k_buf_m = P.buf.k_m; %/mMs
-
-% setup a vector to record the rate of change of lumen fluid flow
-dwAdt = zeros(1,n_l); 
-
-% setup the ode rate of change matrices
-dxcdt = zeros(size(x_c)); % [9,n_c]
-dxldt = zeros(size(x_l)); % [6,n_l]
-
-% loop through the cells to populate the rate of change for each cell/variable
-for i = 1:n_c
-    
-    % first, read all the cell specific parameters
-    cell_struct = cell_prop{i};
-    
-    A_A = cell_struct.api_area;
-    A_B = cell_struct.baslat_area;
-    A_A_int = cell_struct.api_area_int;
-    
-    G_ENaC = cell_struct.scaled_rates.G_ENaC;
-    G_CFTR = cell_struct.scaled_rates.G_CFTR;
-    G_BK   = cell_struct.scaled_rates.G_BK;
-    G_K_B  = cell_struct.scaled_rates.G_K_B;
-    G_P_Na = cell_struct.scaled_rates.G_P_Na;
-    G_P_K  = cell_struct.scaled_rates.G_P_K;
-    G_P_Cl = cell_struct.scaled_rates.G_P_Cl;
-    
-    alpha_NKA_A = cell_struct.scaled_rates.NKA.alpha_A;
-    alpha_NKA_B = cell_struct.scaled_rates.NKA.alpha_B;
-    
-    L_B = cell_struct.scaled_rates.L_B; % um/s 
-    L_A = cell_struct.scaled_rates.L_A; % um/s 
-    
-    % read the cellular variables of this particular cell
-    V_A   = x_c(1,i);
-    V_B   = x_c(2,i);
-    w_C   = x_c(3,i);
-    Na_C  = x_c(4,i);
-    K_C   = x_c(5,i);
-    Cl_C  = x_c(6,i);
-    HCO_C = x_c(7,i);
-    H_C   = x_c(8,i);
-    CO_C  = x_c(9,i);
-    
-    % read the lumenal variables of all lumen segments this cell interface with
-    loc_int = cell_struct.loc_int;
-    
-    Na_A  = x_l(1,loc_int);
-    K_A   = x_l(2,loc_int);
-    Cl_A  = x_l(3,loc_int);
-    HCO_A = x_l(4,loc_int);
-    H_A   = x_l(5,loc_int);
-    CO_A  = x_l(6,loc_int);
-    
-    % water transport
-    osm_c = chi_C./w_C*1e18; % osmolarity of cell due to proteins (chi)
-    
-    J_B = 1e-18*L_B.*V_w.*(Na_C + K_C + Cl_C + HCO_C + osm_c - Na_B - K_B - Cl_B - HCO_B - phi_B); % um/s 
-    J_A = 1e-18*L_A.*V_w.*(Na_A + K_A + Cl_A + HCO_A + phi_A - Na_C - K_C - Cl_C - HCO_C - osm_c); % um/s [1, n_loc_int]
-    dwdt = A_B * J_B - sum(A_A_int .* J_A); % um^3/s
-    dwAdt(1,loc_int) = dwAdt(1,loc_int) + A_A_int .* J_A; % um^3/s [1, n_loc_int]
-    
-    % CDF C02 Diffusion 
-    J_CDF_A = p_CO * (CO_C - CO_A).* w_C .* A_A_int./A_A; % e-18 mol/s [1, n_loc_int]
-    J_CDF_B = p_CO * (CO_C - CO_B).* w_C; % e-18 mol/s
-    
-    % buf CO2 buffering
-    J_buf_C = (k_buf_p*CO_C - k_buf_m.*HCO_C.*H_C).* w_C; % e-18 mol/s 
-    J_buf_A =  k_buf_p*CO_A - k_buf_m.*HCO_A.*H_A; %mM/s [1,n_loc_int]
-    
-    % NHE
-    J_NHE_A = alpha_NHE_A*(k1_p*k2_p*Na_A.*H_C-k1_m*k2_m*Na_C.*H_A)./(k1_p*Na_A+k2_p*H_C+k1_m*H_A+k2_m*Na_C).*w_C.* A_A_int./A_A; % e-18 mol/s [1,n_loc_int]
-    J_NHE_B = alpha_NHE_B*(k1_p*k2_p*Na_B *H_C-k1_m*k2_m*Na_C *H_B)./(k1_p*Na_B+k2_p*H_C+k1_m*H_B+k2_m*Na_C).*w_C; % e-18 mol/s 
-
-    % AE2
-    J_AE2_A = alpha_AE2_A*(k3_p*k4_p*Cl_A.*HCO_C - k3_m*k4_m*Cl_C.*HCO_A)./(k3_p*Cl_A+k4_p*HCO_C+k3_m*HCO_A+k4_m*Cl_C).*w_C.* A_A_int./A_A; % e-18 mol/s [1,n_loc_int]
-    J_AE2_B = alpha_AE2_B*(k3_p*k4_p*Cl_B.*HCO_C - k3_m*k4_m*Cl_C.*HCO_B)./(k3_p*Cl_B+k4_p*HCO_C+k3_m*HCO_B+k4_m*Cl_C).*w_C; % e-18 mol/s 
-
-    % NBC Basolateral
-    J_NBC = alpha_NBC.*(k5_p*k6_p*Na_C.*HCO_C-k5_m*k6_m*Na_B*HCO_B)./(k5_p.*Na_C.*HCO_C+k6_p*k5_m+k6_m*Na_B*HCO_B).*w_C; % e-18 mol/s
-
-    % CFTR Apical 
-    V_A_Cl = 1e3*R*T/(-1*F).*log(Cl_A./Cl_C); % mV [1,n_loc_int]
-    I_CFTR = G_CFTR .* A_A_int .* (V_A - V_A_Cl); % e-6 nA [1,n_loc_int]
-    
-    % CFTR_B Apical
-    V_A_HCO = 1e3*R*T/((-1)*F).*log(HCO_A./HCO_C); % mV [1,n_loc_int]
-    I_CFTR_B = 0.25 * G_CFTR .* A_A_int .* (V_A - V_A_HCO); % e-6 nA [1,n_loc_int]
-    
-    % I_BK Apical
-    V_A_K = 1e3*R*T/F.*log(K_A./K_C); % mV  [1,n_loc_int]
-    I_BK = G_BK .* A_A_int .* (V_A - V_A_K); % e-6 nA 
-
-    % I_K_B Basolateral
-    V_B_K = 1e3*R*T/F.*log(K_B./K_C); % mV
-    I_K_B = G_K_B * A_B .* (V_B - V_B_K); % e-6 nA 
-
-    % ENaC Apical
-    V_A_Na = 1e3*R*T/F*log(Na_A./Na_C); % mV  [1,n_loc_int]
-    I_ENaC = G_ENaC .* A_A_int .* (V_A - V_A_Na); % e-6 nA
-
-    % NaKATPase, NKA 
-    J_NKA_A = A_A_int .* alpha_NKA_A * r_NKA .*(K_A.^2.*Na_C.^3)./(K_A.^2+beta_NKA*Na_C.^3); % 10^-12 mol/s [1,n_loc_int]
-    J_NKA_B = A_B .* alpha_NKA_B * r_NKA .*(K_B.^2.*Na_C.^3)./(K_B.^2+beta_NKA*Na_C.^3); % 10^-12 mol/s
-    
-    
-    % Paracellular currents
-    V_T      = V_A - V_B; % mV
-    V_P_Na   = 1e3*R*T/F.*log(Na_A/Na_B); % mV [1,n_loc_int]
-    V_P_K    = 1e3*R*T/F.*log(K_A/K_B); % mV [1,n_loc_int]
-    V_P_Cl   = 1e3*R*T/(-F).*log(Cl_A/Cl_B); % mV [1,n_loc_int]
-    I_P_Na   = G_P_Na .* A_A_int .* (V_T - V_P_Na); % e-6 nA [1,n_loc_int]
-    I_P_K    = G_P_K .* A_A_int .* (V_T - V_P_K); % e-6 nA [1,n_loc_int]
-    I_P_Cl   = G_P_Cl .* A_A_int .* (V_T - V_P_Cl); % e-6 nA [1,n_loc_int]
-    
-   
-    % V_A e-15 c/s
-    dxcdt(1,i) = -(sum(F*J_NKA_A*1e3 + I_ENaC + I_BK + I_CFTR + I_CFTR_B + I_P_Na + I_P_K + I_P_Cl));
-    % V_B e-15 c/s
-    dxcdt(2,i) = -(F*J_NKA_B*1e3 + I_K_B - sum(I_P_Na + I_P_K + I_P_Cl));
-    % w_C um^3
-    dxcdt(3,i) = dwdt;
-    % Na_C mM/s
-    dxcdt(4,i) = -dwdt*Na_C/w_C + 1e3*(-sum(I_ENaC)./(F*w_C)) - 1e6*(3*(J_NKA_B+sum(J_NKA_A))/w_C) + J_NBC/w_C + sum(J_NHE_A)/w_C + J_NHE_B/w_C;
-    % K_C mM/s
-    dxcdt(5,i) = -dwdt*K_C/w_C + 1e3*(-sum(I_BK)./(F*w_C) - I_K_B./(F*w_C)) + 1e6*(2*(J_NKA_B+sum(J_NKA_A))/w_C);
-    % Cl_C mM/s
-    dxcdt(6,i) = -dwdt*Cl_C/w_C + 1e3*(sum(I_CFTR)./(F*w_C)) + sum(J_AE2_A)/w_C + J_AE2_B/w_C;
-    % HCO_C mM/s
-    dxcdt(7,i) = -dwdt*HCO_C/w_C + 1e3*(sum(I_CFTR_B)./(F*w_C)) + J_NBC/w_C - sum(J_AE2_A)/w_C - J_AE2_B/w_C + J_buf_C/w_C;
-    % H_C mM/s
-    dxcdt(8,i) = -dwdt*H_C/w_C - sum(J_NHE_A)/w_C - J_NHE_B/w_C + J_buf_C/w_C;
-    % CO_C mM/s
-    dxcdt(9,i) = -dwdt*CO_C/w_C - sum(J_CDF_A)/w_C - J_CDF_B/w_C - J_buf_C/w_C;
-    
-    % Na_A mM/s
-    dxldt(1,loc_int) = dxldt(1,loc_int) + 1e6*(3*J_NKA_A./w_A) + 1e3*(I_ENaC./(F*w_A)) + 1e3*(I_P_Na./(F*w_A)) - J_NHE_A./w_A;
-    % K_A mM/s
-    dxldt(2,loc_int) = dxldt(2,loc_int) - 1e6*(2*J_NKA_A./w_A) + 1e3*(I_BK./(F*w_A)) + 1e3*(I_P_K./(F*w_A));
-    % Cl_A mM/s
-    dxldt(3,loc_int) = dxldt(3,loc_int) + 1e3*(-I_CFTR./(F*w_A)) + 1e3*(-I_P_Cl./(F*w_A)) - J_AE2_A./w_A;
-    % HCO_A mM/s
-    dxldt(4,loc_int) = dxldt(4,loc_int) + 1e3*(-I_CFTR_B./(F*w_A)) + J_AE2_A./w_A + J_buf_A;
-    % H_A mM/s
-    dxldt(5,loc_int) = dxldt(5,loc_int) + J_NHE_A./w_A + J_buf_A;
-    % CO_A mM/s
-    dxldt(6,loc_int) = dxldt(6,loc_int) + J_CDF_A./w_A - J_buf_A;
+    % flatten the matrix to a column vector
+    dxdt{j} = [dxcdt(:); dxldt(:)];
 end
 
-% compute the fluid flow rate in the lumen
-v = ones(1,n_l) * P.PSflow; % um^3/s volume flow rate of fluid out of each lumen segment
-v_up = ones(1,n_l) * P.PSflow; % um^3/s volume flow rate of fluid into each lumen segment
-
-% accumulate the fluid as secreted from cells along the lumen 
-for i=1:n_l
-    v(i) = v(i) + sum(dwAdt(1,1:i));
-end
-
-% construct a matrix to represent the upstream variable value for each lumen segment
-x_up = zeros(size(x_l)); 
-x_up(:,1) = cell2mat(struct2cell(P.ConP));
-
-% fill up the upstream flow rate(v_up)/variable(x_up) with downstream flow rate/variable
-if n_l>1 % if there are more than one lumen segment
-    v_up(2:n_l) = v(1:n_l-1);
-    x_up(:,2:n_l) = x_l(:,1:n_l-1);
-end
-
-% convert volume flow rate to linear flow speed
-v = v./A_L; % um/s 
-v_up = v_up./A_L; % um/s
-
-% 1D finite difference discretisation of the lumen, backward differences scheme
-for i = 1:6
-    dxldt(i,:) = dxldt(i,:) + (v_up.*x_up(i,:) - v.*x_l(i,:))./L;
-end
-
-% flatten the matrix to a column vector
-dxdt = [dxcdt(:); dxldt(:)];
+dxdt = cat(1, dxdt{:});
 
 % 
 % if ~displ
@@ -320,10 +357,10 @@ if displ
 %         CellPos(i) = cell_prop{i}.centroid(3);
 %     end
 %     [CellPos,I] = sort(CellPos);
-    IntPos = lumen_prop.segment(1:end-1);
+%     IntPos = lumen_prop.segment(1:end-1);
 % 
-    figure
-    plot(IntPos, v*A_L);
+%     figure
+%     plot(IntPos, v*A_L);
 %     subplot(4,4,1)
 %     plot(IntPos,V_A_Na)
 %     hold on

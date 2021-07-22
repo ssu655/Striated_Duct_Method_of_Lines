@@ -1,4 +1,4 @@
-function [cell_geom, lumen_geom] = get_mesh_info(L)
+function [cell_geom, lumen_geom] = get_mesh_info(L, mesh_file)
 
 % cell_geom is a cell array of struct containing the following features
 % cell_raw    - api_idx      [1, n_api_mesh]
@@ -17,18 +17,7 @@ function [cell_geom, lumen_geom] = get_mesh_info(L)
 %             - radius
 %             - volume
 
-% add the path of the Duct_cells folder
-% addpath('/Users/ssu655/Dropbox/PhD/method_of_lines_mesh/Duct_Cells')
-% addpath('C:\Users\lingm\Dropbox\PhD\method_of_lines_mesh\Duct_Cells')
-
-% Files = dir('Duct_Cells/*.ply'); % a struct with ply file info
-% n_cell = length(Files)-1;
-% % index_i = [28,32];
-% cell_geom = cell(1,n_cell);
-%   mini_gland_slurm-20373309_1.ply
-% filename = '/Users/ssu655/Dropbox/PhD/method_of_lines_mesh/mini_gland_slurm-20373309_1.ply';
-filename = 'C:\Users\lingm\Dropbox\PhD\method_of_lines_mesh\mini_gland_intercalated_1.ply';
-[cells,faces,vertices] = read_ply_custom(filename);%(Files(1).name);
+[cells,faces,vertices] = read_ply_custom(mesh_file);
 labels = unique(faces(:,4)); % array of unique face labels [api, bas, lat]
 n_cell = size(cells,1);
 % 2 variables to be updated with min and max z coordinate as reading mesh

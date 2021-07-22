@@ -1,11 +1,11 @@
-addpath('C:\Users\lingm\Dropbox\PhD\method_of_lines_mesh\geometry_processing_package_repo\io')
-addpath('C:\Users\lingm\Dropbox\PhD\method_of_lines_mesh\geometry_processing_package_repo\data')
-addpath('C:\Users\lingm\Dropbox\PhD\method_of_lines_mesh\geometry_processing_package_repo\algebra')
-addpath('C:\Users\lingm\Dropbox\PhD\method_of_lines_mesh\geometry_processing_package_repo\graphics')
-addpath('C:\Users\lingm\Dropbox\PhD\method_of_lines_mesh\geometry_processing_package_repo\topology')
-addpath('C:\Users\lingm\Dropbox\PhD\method_of_lines_mesh\geometry_processing_package_repo\parameterization')
-
-addpath('C:\Users\lingm\Dropbox\PhD\method_of_lines_mesh\Duct_Cells_new')
+% addpath('C:\Users\lingm\Dropbox\PhD\method_of_lines_mesh\geometry_processing_package_repo\io')
+% addpath('C:\Users\lingm\Dropbox\PhD\method_of_lines_mesh\geometry_processing_package_repo\data')
+% addpath('C:\Users\lingm\Dropbox\PhD\method_of_lines_mesh\geometry_processing_package_repo\algebra')
+% addpath('C:\Users\lingm\Dropbox\PhD\method_of_lines_mesh\geometry_processing_package_repo\graphics')
+% addpath('C:\Users\lingm\Dropbox\PhD\method_of_lines_mesh\geometry_processing_package_repo\topology')
+% addpath('C:\Users\lingm\Dropbox\PhD\method_of_lines_mesh\geometry_processing_package_repo\parameterization')
+% 
+% addpath('C:\Users\lingm\Dropbox\PhD\method_of_lines_mesh\Duct_Cells_new')
 
 % addpath('/Users/ssu655/Dropbox/PhD/method_of_lines_mesh/geometry_processing_package_repo/io')
 % addpath('/Users/ssu655/Dropbox/PhD/method_of_lines_mesh/geometry_processing_package_repo/data')
@@ -19,7 +19,7 @@ addpath('C:\Users\lingm\Dropbox\PhD\method_of_lines_mesh\Duct_Cells_new')
 % ptCloud = pcread('PL-Cell_001.ply');
 % pcshow(ptCloud)
 
-filename = 'C:\Users\lingm\Dropbox\PhD\method_of_lines_mesh\mini_gland.ply';
+filename = 'C:\Users\lingm\Dropbox\PhD\method_of_lines_mesh\mini_gland_slurm-20373309_1.ply';
 [cells,faces,vertices] = read_ply_custom(filename);%(Files(1).name);
 labels = unique(faces(:,4)); % array of unique face labels [api, bas, lat]
 n_cell = size(cells,1);
@@ -40,7 +40,7 @@ for i = 1:n_cell
     
 sf = size(face);   % face is a nf x 3 array
 sv = size(vertex); % vertex is a nv x 3 array
-labels = unique(face(:,4))
+labels = unique(face(:,4));
 
 api_idx = find(face(:,4) == labels(1));
 lat_idx = find(face(:,4) == labels(2));
@@ -62,6 +62,7 @@ po = patch('Faces',face(:,1:3),'Vertices',vertex,...
 view(45,20)
 % 
 [k, volume] = convhull(vertex);
+% volume
 % trisurf(k, vertex(:,1), vertex(:,2), vertex(:,3))
 
 % identify the coordinate points of each face
