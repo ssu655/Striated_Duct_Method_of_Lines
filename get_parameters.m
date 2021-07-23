@@ -46,8 +46,9 @@ function P_list = get_parameters(Conc,PSflow,segment_meshes)
 
 addpath('C:\Users\lingm\Dropbox\PhD\method_of_lines_multimesh\ini2struct')
 INI = ini2struct('C:\Users\lingm\Dropbox\PhD\method_of_lines_multimesh\parms_default.ini');
-param = INI.striated;
+param_s = INI.striated;
 param_i = INI.intercalated;
+param = INI.duct_common;
 
 n_seg = length(segment_meshes.meshtypes);
 P_list = cell(1,n_seg);
@@ -65,7 +66,7 @@ for i = 1:n_seg
     if type == 1    % intercalated cell parameters
         P.G_ENaC = param_i.g_enac; 
     else            % striated cell parameters
-        P.G_ENaC = param.g_enac;
+        P.G_ENaC = param_s.g_enac;
     end
 
     P.G_CFTR = param.g_cftr;
@@ -113,8 +114,8 @@ for i = 1:n_seg
         P.NKA.alpha_A = param_i.nka_alpha_a; % mol/m2
         P.NKA.alpha_B = param_i.nka_alpha_b; % mol/m2
     else            % striated cell parameters
-        P.NKA.alpha_A = param.nka_alpha_a; % mol/m2
-        P.NKA.alpha_B = param.nka_alpha_b; % mol/m2
+        P.NKA.alpha_A = param_s.nka_alpha_a; % mol/m2
+        P.NKA.alpha_B = param_s.nka_alpha_b; % mol/m2
     end
 
     P.NKA.r = param.nka_r; %mM-3s-1
@@ -126,9 +127,9 @@ for i = 1:n_seg
         P.G_P_K = param_i.g_p_k; %S/m2
         P.G_P_Cl = param_i.g_p_cl; %S/m2
     else
-        P.G_P_Na = param.g_p_na; %S/m2
-        P.G_P_K = param.g_p_k; %S/m2
-        P.G_P_Cl = param.g_p_cl; %S/m2
+        P.G_P_Na = param_s.g_p_na; %S/m2
+        P.G_P_K = param_s.g_p_k; %S/m2
+        P.G_P_Cl = param_s.g_p_cl; %S/m2
     end
     
     % water permeability across membranes
@@ -136,8 +137,8 @@ for i = 1:n_seg
         P.L_A = param_i.l_a; % um/s
         P.L_B = param_i.l_b; % um/s
     else
-        P.L_A = param.l_a; % um/s
-        P.L_B = param.l_b; % um/s
+        P.L_A = param_s.l_a; % um/s
+        P.L_B = param_s.l_b; % um/s
     end
 
     % universal physical constants
