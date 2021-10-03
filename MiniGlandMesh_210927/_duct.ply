@@ -1,0 +1,22 @@
+ply
+format ascii 1.0
+comment Mini-Gland mesh format 1.0
+element duct_node 5
+property float x
+property float y
+property float z
+property float radius
+element duct_segment 4
+property int node_in
+property int node_out
+property int seg_type
+end_header
+14.72 15.70 -83.94 4.0
+9.96 15.51 -74.27 4.0
+0.67 16.51 -63.60 4.0
+-4.53 18.93 -54.65 4.0
+-9.95 19.97 -51.83 4.0
+1 0 0
+2 1 0
+3 2 0
+4 3 0
