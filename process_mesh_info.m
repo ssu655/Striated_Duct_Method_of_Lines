@@ -108,133 +108,16 @@ S_fnames = dir("*/*Cell_S*.ply");
 n_S_cell = length(S_fnames);
 S_cell_prop = cell(1,n_S_cell);
 
-% S_fname = strcat(S_fnames(34).folder,"\",S_fnames(34).name);
-% [~, ~, tri_type, ~, ~, ~] = read_striated_intercalated_mesh(S_fname);
-    
 for i = 1:n_S_cell 
     S_fname = strcat(S_fnames(i).folder,"\",S_fnames(i).name);
-    [verts, faces, tri_type, duct_idx, ~, dist_along_duct] = read_striated_intercalated_mesh(S_fname);
     
-    % duct_idx - segment index for the triangle face starting from 0
-    duct_idx = duct_idx+1; % to match the zero based indexing of mesh file
-    
-    % calculate individual triangle face area
-    n_faces = length(tri_type);
-    face_area = zeros(1,n_faces);
-    
-    for j = 1:n_faces
-        A = verts(faces(j,1),:) - verts(faces(j,2),:);
-        B = verts(faces(j,2),:) - verts(faces(j,3),:);
-        face_area(j) = 0.5 * norm(cross(A,B));
-    end
-    
-    api_idx = find(tri_type == 0); % [1, n_apical_idx]
-    lat_idx = find(tri_type == 1); % [1, n_lateral_idx]
-    bas_idx = find(tri_type == 2); % [1, n_basal_idx]
-    
-    api_binary = zeros(size(duct_idx)); % [1, n_triangle_idx]
-    api_binary(api_idx) = 1;
-    duct_idx_api = duct_idx.*api_binary; % [1, n_triangle_idx]
-    
-    api_face_area = face_area.*api_binary'; % [1, n_triangle_idx]
-    api_area = sum(api_face_area);
-    bas_area = sum(face_area(bas_idx));
-    lat_area = sum(face_area(lat_idx));
-    
-    % the duct index corresponding to the api triangles
-    duct_seg = unique(duct_idx(api_idx));
-    
-    % apical area corresponding to each disc
-    api_area_discs = zeros(1,n_disc);
-    
-    % Calculating total apical triangle area corresponding to a disc
-    %       
-    %       - discs are indexed from node 0 of the whole duct
-    %       - each triangle's distance along duct also need to be from node 0
-    %       - since triangle dist_along_duct is segment based.
-    %       - we need to consider segment by segment
-    
-    for j = 1:length(duct_seg)
-        
-        % distance from node 0 at the start of the segment j
-        distance_start = 0;
-        
-        % starting from the current segment, tracing its input segment until the root
-        % adding up the input segment lengths
-        k = duct_seg(j); 
-        while seg_out_Vec(k) ~= 0
-            k = seg_out_Vec(k);
-            distance_start = distance_start + seg_length(k);
-        end
-        
-        % apical indices corresponding to segment j
-        duct_seg_idx = find(duct_idx_api == duct_seg(j));
-        
-        % dist_along_duct measurement is from acinus
-        % reverse of segment order (from node 0)
-        % thus distance need to be reversed
-        dist_along_duct_api_seg = seg_length(duct_seg(j)) - dist_along_duct(duct_seg_idx);
-        % distance of apical triangle in segment j, from node 0
-        total_dist_along_duct = dist_along_duct_api_seg + distance_start; 
-        
-        % find all discs in segment j
-        all_discs_in_seg = find(d_s_Vec == duct_seg(j));
-        distal_disc = min(all_discs_in_seg); % close to node 0 disc
-        proxim_disc = max(all_discs_in_seg); % far from node 0 disc
-        
-        % make an array of bins for apical triangle distances, using the discs
-        % consider all the discs from node 0 to segment j
-        disc_edges = zeros(1,(proxim_disc + 1));
-        for k = distal_disc : proxim_disc + 1
-            disc_edges(k) = sum(disc_length(distal_disc:k-1)) + distance_start;
-        end
-        
-        % drop the distance along duct into the dise edge bins
-        api_disc_conn = discretize(total_dist_along_duct, disc_edges);
-        
-        % the discs that has apical triangles in them
-        loc_disc = unique(api_disc_conn);
-        
-        % the apical triangle areas corresponding the segment j
-        api_face_area_seg = api_face_area(duct_seg_idx);
-        
-        % summing up all the triangle area in each bin/disc 
-        for k = 1:length(loc_disc)
-            api_disc_ind = find(api_disc_conn == loc_disc(k));
-            api_area_discs(loc_disc(k)) = sum(api_face_area_seg(api_disc_ind));
-        end
-    end
-    
-    % Calculate the average distance along duct of the cell, from node 0
-    % first find out the segments covered by the cell
-    duct_seg_tot = unique(duct_idx);
-    
-    % convert distance along duct segment to distance from node 0
-    total_dist_along_duct = zeros(size(duct_idx));
-    for j = 1:length(duct_seg_tot)
-        distance_start = 0;
-        k = duct_seg_tot(j);
-        % tracing back the input segment until the root segment
-        while seg_out_Vec(k) ~= 0
-            k = seg_out_Vec(k);
-            distance_start = distance_start + seg_length(k);
-        end
-        tri_seg_idx = find(duct_idx == duct_seg_tot(j));
-        % fill up the triangle idx corresponding to the segment
-        total_dist_along_duct(tri_seg_idx) = seg_length(duct_seg_tot(j)) - dist_along_duct(tri_seg_idx) + distance_start;
-    end
-    mean_dist = mean(total_dist_along_duct);
-    
+    cell_struct = process_cell_info(S_fname, seg_out_Vec, seg_length, d_s_Vec, disc_length);
+     
     % the apical area used to scale the conductances G
     A = 104.719755;
     
-    cell_struct.mean_dist = mean_dist;
-    cell_struct.api_area_discs = api_area_discs;
-    cell_struct.api_area = api_area;
-    cell_struct.baslat_area = bas_area + lat_area;
-    
-    A_A = api_area;
-    A_B = bas_area + lat_area;
+    A_A = cell_struct.api_area;
+    A_B = cell_struct.baslat_area;
     
     % scale the rates based on cell surface areas
     scaled_rates = struct;
@@ -257,3 +140,121 @@ end
 
 end
 
+function cell_struct = process_cell_info(S_fname, seg_out_Vec, seg_length, d_s_Vec, disc_length)
+
+[verts, faces, tri_type, duct_idx, ~, dist_along_duct] = read_striated_intercalated_mesh(S_fname);
+
+% duct_idx - segment index for the triangle face starting from 0
+duct_idx = duct_idx+1; % to match the zero based indexing of mesh file
+
+% calculate individual triangle face area
+n_faces = length(tri_type);
+face_area = zeros(1,n_faces);
+
+for j = 1:n_faces
+    A = verts(faces(j,1),:) - verts(faces(j,2),:);
+    B = verts(faces(j,2),:) - verts(faces(j,3),:);
+    face_area(j) = 0.5 * norm(cross(A,B));
+end
+
+api_idx = find(tri_type == 0); % [1, n_apical_idx]
+lat_idx = find(tri_type == 1); % [1, n_lateral_idx]
+bas_idx = find(tri_type == 2); % [1, n_basal_idx]
+
+api_binary = zeros(size(duct_idx)); % [1, n_triangle_idx]
+api_binary(api_idx) = 1;
+duct_idx_api = duct_idx.*api_binary; % [1, n_triangle_idx]
+
+api_face_area = face_area.*api_binary'; % [1, n_triangle_idx]
+api_area = sum(api_face_area);
+bas_area = sum(face_area(bas_idx));
+lat_area = sum(face_area(lat_idx));
+
+% the duct index corresponding to the api triangles
+duct_seg = unique(duct_idx(api_idx));
+
+% Calculating the total apical triangle area corresponding to each disc
+n_disc = length(disc_length);
+api_area_discs = zeros(1,n_disc); 
+
+% first find out the segments covered by the cell
+duct_seg_tot = unique(duct_idx);
+
+% convert distance along duct segment to distance from node 0
+total_dist_along_duct = zeros(size(duct_idx));
+
+% Since triangle dist_along_duct is segment based, we need to consider segment by segment
+for j = 1:length(duct_seg_tot)
+    s = duct_seg_tot(j);
+    tri_seg_idx = find(duct_idx == s);
+    dist_start_seg = calc_dist_start_seg(s, seg_out_Vec, seg_length);
+    
+    % calculate the total distance
+    %       - discs are indexed from node 0 of the whole duct
+    %       - in contrast, the triangle's distance along duct is measured from acinus
+    %       - thus dist along duct needs to be reversed.
+    total_dist_along_duct(tri_seg_idx) = seg_length(s) - dist_along_duct(tri_seg_idx) + dist_start_seg;
+end
+
+% the average distance along the duct for a cell
+mean_dist = mean(total_dist_along_duct);
+
+% For loop to put apical triangles into the corresponding discs, based on
+% their total distance along duct.
+% This needs to be done segment by segment, in case of duct branches.
+% (triangles on two branches have similar distance but belong to diff discs)
+for j = 1:length(duct_seg)
+    
+    s = duct_seg(j); 
+    % apical indices corresponding to segment s
+    tri_seg_idx = find(duct_idx_api == s);
+    total_dist_along_duct_seg = total_dist_along_duct(tri_seg_idx);
+    
+    % find all discs in segment s
+    all_discs_in_seg = find(d_s_Vec == s);
+    distal_disc = min(all_discs_in_seg); % close to node 0 disc
+    proxim_disc = max(all_discs_in_seg); % far from node 0 disc
+    
+    % make an array of bins for apical triangle distances, using the discs
+    % consider all the discs from node 0 to segment j
+    disc_edges = zeros(1,(proxim_disc + 1));
+    dist_start_seg = calc_dist_start_seg(s, seg_out_Vec, seg_length);
+    for k = distal_disc : proxim_disc + 1
+        disc_edges(k) = sum(disc_length(distal_disc:k-1)) + dist_start_seg;
+    end
+    
+    % drop the distance along duct into the dise edge bins
+    api_disc_conn = discretize(total_dist_along_duct_seg, disc_edges);
+    
+    % array of the discs that has apical triangles in them
+    loc_disc = unique(api_disc_conn);
+    
+    % the apical triangle areas corresponding the segment j
+    api_face_area_seg = api_face_area(tri_seg_idx);
+    
+    % summing up all the triangle area in each bin/disc
+    for k = 1:length(loc_disc)
+        api_disc_ind = find(api_disc_conn == loc_disc(k));
+        api_area_discs(loc_disc(k)) = sum(api_face_area_seg(api_disc_ind));
+    end
+end
+
+cell_struct.mean_dist = mean_dist;
+cell_struct.api_area_discs = api_area_discs;
+cell_struct.api_area = api_area;
+cell_struct.baslat_area = bas_area + lat_area;
+end
+
+function dist_start_seg = calc_dist_start_seg(seg_idx, seg_out_Vec, seg_length)
+% distance_start = distance from node 0 at the start of seg_idx
+dist_start_seg = 0;
+
+% starting from the current segment, tracing its output segment until the root
+k = seg_idx;
+while seg_out_Vec(k) ~= 0
+    k = seg_out_Vec(k);
+    
+    % adding up the output segment lengths
+    dist_start_seg = dist_start_seg + seg_length(k);
+end
+end
