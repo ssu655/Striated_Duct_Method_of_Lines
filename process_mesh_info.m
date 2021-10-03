@@ -27,12 +27,22 @@ D_fname = dir("*/*_duct.ply");
 D_fname = strcat(D_fname.folder, '\',D_fname.name);
 [nodes, segments, radii, ~] = read_duct_tree_mesh(D_fname);
 
-n_seg = size(segments,1);
+n_seg = size(segments,1); % segment is the sections of duct provided in the mesh file
+
+% segments are indexed from node 0 or duct outlet
 seg_length = vecnorm(nodes(segments(:,1)+1,:) - nodes(segments(:,2)+1,:),2,2);
-n_disc = 0;
-disc_length = zeros(1,6); % starting the vector a bit short, will get longer
-d_s_Vec = zeros(1,6); % [1, n_disc] 
-disc_X_area = zeros(1,6);
+
+% discs are further discretisation of the duct segment
+n_disc = 0; 
+
+% discs are also indexed from node 0
+disc_length = zeros(1,6); % [1, n_disc] starting the vector a bit short, will get longer
+
+% which segment the disc belongs to
+d_s_Vec = zeros(1,6); % [1, n_disc]
+disc_X_area = zeros(1,6); 
+
+% keep track of the output segment/disc of each segment/disc, in terms of water flow
 seg_out_Vec = zeros(1, n_seg);
 disc_out_Vec = zeros(1, 6);
 
