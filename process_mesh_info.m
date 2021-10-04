@@ -216,7 +216,7 @@ for j = 1:length(duct_seg)
     proxim_disc = max(all_discs_in_seg); % far from node 0 disc
     
     % make an array of bins for apical triangle distances, using the discs
-    % consider all the discs from node 0 to segment j
+    % consider all the discs from node 0 to segment s
     disc_edges = zeros(1,(proxim_disc + 1));
     dist_start_seg = calc_dist_start_seg(s, seg_out_Vec, seg_length);
     for k = distal_disc : proxim_disc + 1
