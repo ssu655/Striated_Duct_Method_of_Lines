@@ -42,13 +42,12 @@ P = get_striat_parameters(Conc,PSflow);
 
 x = setup_IC(Conc, cell_prop, lumen_prop);
 
-f_ODE_noMass(1,x,P,cell_prop,lumen_prop,0);
+% f_ODE_noMass(1,x,P,cell_prop,lumen_prop,0);
 
 %% Setup and solve the ODE
 
 % f_ODE(1,x,P,cell_prop,lumen_prop,1);
-
-tspan = [0,30000];
+tspan = [0,11000];
 
 % ===========================================
 % % run the version of ODE with mass matrix
