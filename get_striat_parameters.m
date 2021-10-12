@@ -42,8 +42,8 @@ function P = get_striat_parameters(Conc,PSflow)
 %   - V_w
 %
 
-addpath('C:\Users\lingm\Dropbox\PhD\method_of_lines_mesh\ini2struct')
-INI = ini2struct('C:\Users\lingm\Dropbox\PhD\method_of_lines_mesh\parms_default.ini');
+addpath('ini2struct')
+INI = ini2struct('parms_default.ini');
 param_s = INI.striated;
 param_c = INI.duct_common;
 

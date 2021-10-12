@@ -24,7 +24,7 @@ function [S_cell_prop, lumen_prop] = process_mesh_info(L,P)
 %            - 
 %%
 D_fname = dir("*/*_duct.ply");
-D_fname = strcat(D_fname.folder, '\',D_fname.name);
+D_fname = strcat(D_fname.folder, filesep, D_fname.name);
 [nodes, segments, radii, ~] = read_duct_tree_mesh(D_fname);
 
 n_seg = size(segments,1); % segment is the sections of duct provided in the mesh file
@@ -109,7 +109,7 @@ n_S_cell = length(S_fnames);
 S_cell_prop = cell(1,n_S_cell);
 
 for i = 1:n_S_cell 
-    S_fname = strcat(S_fnames(i).folder,"\",S_fnames(i).name);
+    S_fname = strcat(S_fnames(i).folder, filesep, S_fnames(i).name);
     
     cell_struct = process_cell_info(S_fname, seg_out_Vec, seg_length, d_s_Vec, disc_length);
      
