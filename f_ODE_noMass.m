@@ -1,4 +1,4 @@
-function dxdt = f_ODE_noMass(t,x,P,cell_prop,lumen_prop,displ)
+function dxdt = f_ODE_noMass(t,x,P,cell_prop,lumen_prop,displ,dynamic,time_series)
 
 % x is [1 ; 9 * n_c + 6 * n_l] 
 % 
@@ -25,8 +25,31 @@ n_l = lumen_prop.n_disc;   % number of lumen segments
 x_c = reshape(x(1 : n_c*9),9,[]);        % [9, n_c]
 x_l = reshape(x(1 + n_c*9 : end),6,[]);  % [6, n_l]
 
-
 % read the constant parameters from input struct P
+if dynamic
+    % primary saliva volume flow rate dependent on time
+    if t<500
+        Na_P = interp1(time_series.time,time_series.Na,t);
+        K_P = interp1(time_series.time,time_series.K,t);
+        Cl_P = interp1(time_series.time,time_series.Cl,t);
+        pv = interp1(time_series.time,time_series.Q,t)/6;
+    else
+        Na_P = P.ConP.Na;% mM
+        K_P = P.ConP.K;
+        Cl_P = P.ConP.Cl;
+        pv = P.PSflow;
+    end
+else 
+    % primary saliva volume flow rate independent on time
+    Na_P = P.ConP.Na;% mM
+    K_P = P.ConP.K;
+    Cl_P = P.ConP.Cl;
+    pv = P.PSflow;
+end
+HCO_P = P.ConP.HCO;% 
+H_P = P.ConP.H;% 
+CO_P = P.ConP.CO;% 
+
 Na_B = P.ConI.Na;
 K_B = P.ConI.K;
 Cl_B = P.ConI.Cl; %
@@ -221,41 +244,32 @@ for i = 1:n_c
 end
 
 % compute the fluid flow rate in the lumen
-v = ones(1,n_l) * P.PSflow; % um^3/s volume flow rate of fluid out of each lumen disc
-v_up = ones(1,n_l) * P.PSflow; % um^3/s volume flow rate of fluid into each lumen disc
+v_secreted = zeros(1,n_l); % um^3/s volume flow rate of fluid out of each lumen disc
+v_up = zeros(1,n_l); % um^3/s volume flow rate of fluid into each lumen disc
+x_up = zeros(size(x_l)); 
 
 disc_out = lumen_prop.disc_out_Vec;
 
-% accumulate the fluid as secreted from cells along the lumen 
-for i=1:n_l
-    % starting from disc i, tracing back its input disc and adding up the disc water secretion recursively
-    k=i;
-    v(i) = v(i) + dwAdt(i);
-    while find(disc_out == k) ~= 0 % if upsteam disc exists/disc is the output of some other disc
-        v(i) = v(i) + sum(dwAdt(find(disc_out == k))); 
-        k = find(disc_out == k); % set k to be the upstream disc/discs
+for i=n_l:-1:1
+    
+    % find upstream disc(s) of disc i
+    i_up = find(ismember(disc_out, i));
+
+    % if no upstream disc, it is an acinus end disc, v_up = PSflow
+    if isempty(i_up)
+        v_up(i) = pv;
+        v_secreted(i) = 0;
+%         x_up(:,i) = cell2mat(struct2cell(P.ConP));
+        x_up(:,i) = [Na_P; K_P; Cl_P; HCO_P; H_P; CO_P];
+        
+    else % i_up could be a vector due to i being a branching disc
+        v_up(i) = sum(v_up(i_up));
+        v_secreted(i) = sum(v_secreted(i_up) + dwAdt(i_up));
+        x_up(:,i) = sum(x_l(:,i_up).*v_up(i_up)/sum(v_up(i_up)),2);
     end
 end
-
-% construct a matrix to represent the upstream variable value for each lumen segment
-x_up = zeros(size(x_l)); 
-x_up(:,end) = cell2mat(struct2cell(P.ConP));
-
-% fill up the upstream water flow v_up and variables x_up
-if n_l>1 % if there are more than one lumen disc
-    for j = 1:n_l
-        % find the index of the upsteam disc/discs
-        disc_up = find(disc_out == j);
-        if disc_up ~= 0 % there exists upsteam discs
-            v_up(j) = sum(v(disc_up)); % summing up upstream discs in case of a joint branch
-            x_up(:,j) = mean(x_l(:,disc_up),2); % take inflow variabls as mean of upstream variables
-            % !!! might need to correct to a weighted average in future versions!!!
-        else % for the most upsteam discs, use primary saliva and input flow rate
-            v_up(j) = P.PSflow;
-            x_up(:,j) = cell2mat(struct2cell(P.ConP));
-        end
-    end
-end
+v_up = v_up + v_secreted;
+v = v_up + dwAdt;
 
 % convert volumetric flow rate to linear flow speed
 v = v./A_L; % um/s 

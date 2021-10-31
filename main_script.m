@@ -15,7 +15,7 @@
 
 %% Model input setup
 
-L_int = 1; % um length of lumen discretisation interval
+L_int = 3; % um length of lumen discretisation interval
 PSflow = 10; % um3/s volumetric primary saliva flow rate
 
 fields = {'Na'; 'K'; 'Cl'; 'HCO'; 'H'; 'CO'};
@@ -32,11 +32,11 @@ Conc.LIC = cell2struct(num2cell(LIC),fields);
 %% Parameter structure setup
 
 % P = get_interc_parameters(Conc,PSflow);
-P = get_striat_parameters(Conc,PSflow);
+[P_i, P_s] = get_parameters(Conc,PSflow);
 
 %% Read mesh file and process raw mesh data
 
-[cell_prop, lumen_prop] = process_mesh_info(L_int, P);
+[cell_prop, lumen_prop] = process_mesh_info(L_int, P_i, P_s);
 
 %% Initial condition setup
 
@@ -47,7 +47,8 @@ x = setup_IC(Conc, cell_prop, lumen_prop);
 %% Setup and solve the ODE
 
 % f_ODE(1,x,P,cell_prop,lumen_prop,1);
-tspan = [0,11000];
+tspan = [0,10000];
+P = P_s;
 
 % ===========================================
 % % run the version of ODE with mass matrix
@@ -59,10 +60,10 @@ tspan = [0,11000];
 % ==========================================
 % run the version of ODE without mass matrix
 tic
-[t,y] = ode15s(@(t,y) f_ODE_noMass(t,y,P,cell_prop,lumen_prop,0), tspan, x);
+[t,y] = ode15s(@(t,y) f_ODE_noMass(t,y,P,cell_prop,lumen_prop,0,0,0), tspan, x);
 toc
 
-% f_ODE_noMass(1,y(end,:),P,cell_prop,lumen_prop,1);
+% f_ODE_noMass(1,y(end,:),P,cell_prop,lumen_prop,1,0,0);
 
 %% Sanity checks
 
@@ -102,80 +103,87 @@ disp(sum(y_l(1:6,:)) + P.phi_A)
 disp('interstitium osmolarity')
 disp(sum(Int) + P.phi_B)
 
+%% Plotting
+
+IntPos = zeros(1,lumen_prop.n_disc);
+IntPos(1) = lumen_prop.disc_length(1);
+for i = 2:lumen_prop.n_disc
+    out = lumen_prop.disc_out_Vec(i);
+    IntPos(i) = lumen_prop.disc_length(i) + IntPos(out);
+end
+max_length = max(IntPos);
+IntPos = max_length - IntPos;
+% IntPos = IntPos(1:58);
+% y_l = y_l(:,1:58);
+
 CellPos = zeros(1,length(cell_prop));
 for i = 1:length(cell_prop)
     CellPos(i) = cell_prop{i}.mean_dist;
 end
 [CellPos,I] = sort(CellPos);
-CellPos = sum(lumen_prop.disc_length) - CellPos;
-
-IntPos = zeros(1,lumen_prop.n_disc);
-for i = 1:lumen_prop.n_disc
-    IntPos(i) = sum(lumen_prop.disc_length(1:i));
-end
-IntPos = sum(lumen_prop.disc_length) - IntPos;
+CellPos = max_length - CellPos;
 
 figure
 subplot(2,5,1)
-plot(CellPos, y_c(1,I),'--')
+plot(CellPos, y_c(1,I),'.')
 hold on
-plot(CellPos, y_c(2,I),'--')
+plot(CellPos, y_c(2,I),'.')
 hold off
 legend('V_A','V_B')
 ylabel('mV')
 title('Membrane Potential')
 subplot(2,5,6)
-plot(CellPos, y_c(3,I),'-')
+plot(CellPos, y_c(3,I),'.')
 %legend('w_C')
 ylabel('um3')
 title('Cell Volumn')
 subplot(2,5,2)
-plot(CellPos, y_c(4,I),'-')
+plot(CellPos, y_c(4,I),'.')
 hold on
-plot(CellPos, y_c(5,I),'-')
+plot(CellPos, y_c(5,I),'.')
 hold off
 legend('Na_C','K_C')
 ylabel('mM')
 title('Cellular Concentration')
 subplot(2,5,3)
-plot(CellPos, y_c(6,I),'-')
+plot(CellPos, y_c(6,I),'.')
 hold on
-plot(CellPos, y_c(7,I),'-')
+plot(CellPos, y_c(7,I),'.')
 hold off
 legend('Cl_C','HCO_C')
 ylabel('mM')
 title('Cellular Concentration')
 subplot(2,5,4)
-plot(CellPos, -log10(y_c(8,I)*1e-3),'-')
+plot(CellPos, -log10(y_c(8,I)*1e-3),'.')
 title('Cellular pH')
 subplot(2,5,5)
-plot(CellPos, y_c(9,I),'-')
+plot(CellPos, y_c(9,I),'.')
 legend('CO_C')
 ylabel('mM')
 ylim([1.27,1.29])
 title('Cellular Concentration')
 
 subplot(2,5,7)
-plot(IntPos, y_l(1,:))
+plot(IntPos, y_l(1,:),'.')
 hold on
-plot(IntPos, y_l(2,:))
+plot(IntPos, y_l(2,:),'.')
 hold off
 legend('Na_A','K_A')
 ylabel('mM')
 title('Lumenal Concentration')
 subplot(2,5,8)
-plot(IntPos, y_l(3,:))
+plot(IntPos, y_l(3,:),'.')
 hold on
-plot(IntPos, y_l(4,:))
+plot(IntPos, y_l(4,:),'.')
 hold off
 legend('Cl_A','HCO_A')
 ylabel('mM')
 title('Lumenal Concentration')
 subplot(2,5,9)
-plot(IntPos, -log10(y_l(5,:)*1e-3))
+plot(IntPos, -log10(y_l(5,:)*1e-3),'.')
 title('Lumenal pH')
 subplot(2,5,10)
-plot(IntPos, y_l(6,:))
+plot(IntPos, y_l(6,:),'.')
 legend('CO_A')
 ylabel('mM')
 ylim([1.27,1.29])

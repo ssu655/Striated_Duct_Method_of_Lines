@@ -1,4 +1,4 @@
-function [S_cell_prop, lumen_prop] = process_mesh_info(L,P)
+function [cell_prop, lumen_prop] = process_mesh_info(L, P_i, P_s)
 
 % S_cell_prop is a cell array of struct containing the following features
 % cell_struct - mean_dist    (mean distance of cell from node 0)
@@ -23,12 +23,23 @@ function [S_cell_prop, lumen_prop] = process_mesh_info(L,P)
 %            - disc_out_Vec [1, n_disc]
 %            - 
 %%
-D_fname = dir("*/*_duct.ply");
+mesh_folder = "MiniGlandMesh_210927";
+D_fname = dir(strcat(mesh_folder,"/*_duct.ply"));
 D_fname = strcat(D_fname.folder, filesep, D_fname.name);
 [nodes, segments, radii, ~] = read_duct_tree_mesh(D_fname);
 
 n_seg = size(segments,1); % segment is the sections of duct provided in the mesh file
-
+% figure
+% hold on
+% for i = 1:n_seg
+%     st = nodes(segments(i,1)+1,:); 
+%     en = nodes(segments(i,2)+1,:); 
+%     to = [st;en];
+%     plot3(to(:,1),to(:,2),to(:,3))
+% end
+% hold off
+% xlim([-50,50])
+% ylim([-50,50])
 % segments are indexed from node 0 or duct outlet
 seg_length = vecnorm(nodes(segments(:,1)+1,:) - nodes(segments(:,2)+1,:),2,2);
 
@@ -81,7 +92,7 @@ for i = 1:n_seg
         
         % find the disc index of the corresponding output segment 
         seg_out_disc = find(d_s_Vec == seg_out);
-        % the output disc of the first dist is the last disc of the output segment
+        % the output disc of the first disc is the last disc of the output segment
         % (first - close to node 0, last - far from node 0)
         disc_out_Vec(n_disc+1) = seg_out_disc(end);
     end
@@ -91,6 +102,15 @@ for i = 1:n_seg
     % update total num of discs with those in the current segment
     n_disc = n_disc + n;
     
+end
+
+acinus_disc = zeros(1,1);
+num = 1;
+for i = 1:n_disc
+    if ~ismember(disc_out_Vec,i)
+        acinus_disc(num) = i;
+        num = num + 1;
+    end
 end
 disc_volume = disc_X_area .* disc_length;
 
@@ -102,41 +122,48 @@ lumen_prop.n_disc = n_disc;
 lumen_prop.disc_volume = disc_volume;
 lumen_prop.disc_X_area = disc_X_area;
 lumen_prop.disc_out_Vec = disc_out_Vec;
+lumen_prop.acinus_disc = acinus_disc;
 
-%%
-S_fnames = dir("*/*Cell_S*.ply");
-n_S_cell = length(S_fnames);
-S_cell_prop = cell(1,n_S_cell);
+%% process duct cells
+S_fnames = dir(strcat(mesh_folder,"/*Cell_S*.ply"));
+I_fnames = dir(strcat(mesh_folder,"/*Cell_I*.ply"));
 
-for i = 1:n_S_cell 
-    S_fname = strcat(S_fnames(i).folder, filesep, S_fnames(i).name);
+fnames = cell2struct([struct2cell(S_fnames),struct2cell(I_fnames)],fieldnames(S_fnames));
+
+n_cell = length(fnames);
+cell_prop = cell(1,n_cell);
+cell_count = 0;
+
+for i = 1:n_cell
+    fname = strcat(fnames(i).folder, filesep, fnames(i).name);
     
-    cell_struct = process_cell_info(S_fname, seg_out_Vec, seg_length, d_s_Vec, disc_length);
-     
-    % the apical area used to scale the conductances G
-    A = 104.719755;
+    cell_struct = process_cell_info(fname, seg_out_Vec, seg_length, d_s_Vec, disc_length);
     
     A_A = cell_struct.api_area;
     A_B = cell_struct.baslat_area;
     
-    % scale the rates based on cell surface areas
-    scaled_rates = struct;
-    scaled_rates.L_A    = P.L_A * A / A_A;
-    scaled_rates.L_B    = P.L_B * A / A_B;
-    scaled_rates.G_ENaC = P.G_ENaC * A / A_A;
-    scaled_rates.G_CFTR = P.G_CFTR * A / A_A;
-    scaled_rates.G_BK   = P.G_BK * A / A_A;
-    scaled_rates.G_K_B  = P.G_K_B * A / A_B;
-    scaled_rates.G_P_Na = P.G_P_Na * A / A_A;
-    scaled_rates.G_P_K  = P.G_P_K * A / A_A;
-    scaled_rates.G_P_Cl = P.G_P_Cl * A / A_A;
-    scaled_rates.NKA    = P.NKA;
-    scaled_rates.NKA.alpha_A = P.NKA.alpha_A * A / A_A;
-    scaled_rates.NKA.alpha_B = P.NKA.alpha_B * A / A_B;
-    cell_struct.scaled_rates = scaled_rates;
+    if A_A == 0
+        message = strcat("Cell ", num2str(i), " has no apical faces, thus skipped");
+        disp(message)
+        continue
+    else
+        cell_count = cell_count + 1;
+    end
     
-    S_cell_prop{i} = cell_struct;
+    % scale the rates based on cell surface areas
+    if contains(fname,"Cell_S") % "sCell"
+        P = P_s;
+    elseif contains(fname,"Cell_I") % "iCell"
+        P = P_i;
+    else 
+        error("warning, the cell is neither intercalated nor striated")
+    end
+        
+    cell_struct.scaled_rates = parameter_scalling(P, A_A, A_B);
+    
+    cell_prop{cell_count} = cell_struct;
 end
+cell_prop = cell_prop(1:cell_count);
 
 end
 
@@ -235,7 +262,7 @@ for j = 1:length(duct_seg)
     % summing up all the triangle area in each bin/disc
     for k = 1:length(loc_disc)
         api_disc_ind = find(api_disc_conn == loc_disc(k));
-        api_area_discs(loc_disc(k)) = sum(api_face_area_seg(api_disc_ind));
+        api_area_discs(loc_disc(k)) = api_area_discs(loc_disc(k)) + sum(api_face_area_seg(api_disc_ind));
     end
 end
 
@@ -257,4 +284,23 @@ while seg_out_Vec(k) ~= 0
     % adding up the output segment lengths
     dist_start_seg = dist_start_seg + seg_length(k);
 end
+end
+
+function scaled_rates = parameter_scalling(P, A_A, A_B)
+% the apical area used to scale the conductances G
+A = 104.719755;
+    
+scaled_rates = struct;
+scaled_rates.L_A    = P.L_A * A / A_A;
+scaled_rates.L_B    = P.L_B * A / A_B;
+scaled_rates.G_ENaC = P.G_ENaC * A / A_A;
+scaled_rates.G_CFTR = P.G_CFTR * A / A_A;
+scaled_rates.G_BK   = P.G_BK * A / A_A;
+scaled_rates.G_K_B  = P.G_K_B * A / A_B;
+scaled_rates.G_P_Na = P.G_P_Na * A / A_A;
+scaled_rates.G_P_K  = P.G_P_K * A / A_A;
+scaled_rates.G_P_Cl = P.G_P_Cl * A / A_A;
+scaled_rates.NKA    = P.NKA;
+scaled_rates.NKA.alpha_A = P.NKA.alpha_A * A / A_A;
+scaled_rates.NKA.alpha_B = P.NKA.alpha_B * A / A_B;
 end
