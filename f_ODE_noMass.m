@@ -1,4 +1,4 @@
-function dxdt = f_ODE_noMass(t,x,P,cell_prop,lumen_prop,displ,dynamic,time_series)
+function [dxdt,flow_rate] = f_ODE_noMass(t,x,P,cell_prop,lumen_prop,displ,dynamic,time_series)
 
 % x is [1 ; 9 * n_c + 6 * n_l] 
 % 
@@ -25,6 +25,10 @@ n_l = lumen_prop.n_disc;   % number of lumen segments
 x_c = reshape(x(1 : n_c*9),9,[]);        % [9, n_c]
 x_l = reshape(x(1 + n_c*9 : end),6,[]);  % [6, n_l]
 
+if displ
+    flux = initiate_flux(n_l, n_c, x_c);
+end
+
 % read the constant parameters from input struct P
 if dynamic
     % primary saliva volume flow rate dependent on time
@@ -32,11 +36,15 @@ if dynamic
         Na_P = interp1(time_series.time,time_series.Na,t);
         K_P = interp1(time_series.time,time_series.K,t);
         Cl_P = interp1(time_series.time,time_series.Cl,t);
-        pv = interp1(time_series.time,time_series.Q,t)/6;
+        HCO_P = interp1(time_series.time,time_series.HCO,t);
+        H_P = interp1(time_series.time,time_series.H,t);
+        pv = interp1(time_series.time,time_series.Q,t);
     else
         Na_P = P.ConP.Na;% mM
         K_P = P.ConP.K;
         Cl_P = P.ConP.Cl;
+        HCO_P = P.ConP.HCO;
+        H_P = P.ConP.H;
         pv = P.PSflow;
     end
 else 
@@ -44,10 +52,12 @@ else
     Na_P = P.ConP.Na;% mM
     K_P = P.ConP.K;
     Cl_P = P.ConP.Cl;
+    HCO_P = P.ConP.HCO;
+    H_P = P.ConP.H;
     pv = P.PSflow;
 end
-HCO_P = P.ConP.HCO;% 
-H_P = P.ConP.H;% 
+% HCO_P = P.ConP.HCO;% 
+% H_P = P.ConP.H;% 
 CO_P = P.ConP.CO;% 
 
 Na_B = P.ConI.Na;
@@ -63,26 +73,19 @@ F = P.F;% C/mol
 
 V_w = P.V_w; % um^3/mol 
 A_L = lumen_prop.disc_X_area; %um^2 [1,n_l]
-chi_C = P.chi_C; % mol
 phi_A = P.phi_A; % mM
 phi_B = P.phi_B; % mM
 
-alpha_NHE_A = P.NHE.alpha_A;
-alpha_NHE_B = P.NHE.alpha_B;
 k1_p = P.NHE.k1_p; % 1/s
 k1_m = P.NHE.k1_m; % 1/s
 k2_p = P.NHE.k2_p; % 1/s
 k2_m = P.NHE.k2_m; % 1/s
 
-alpha_AE2_A = P.AE2.alpha_A;
-alpha_AE2_B = P.AE2.alpha_B;
 k3_p = P.AE2.k3_p; % 1/s
 k3_m = P.AE2.k3_m; % 1/s
 k4_p = P.AE2.k4_p; % 1/s
 k4_m = P.AE2.k4_m; % 1/s
 
-alpha_NBC_A = P.NBC.alpha_A;
-alpha_NBC_B = P.NBC.alpha_B;
 k5_p = P.NBC.k5_p; % 1/s
 k5_m = P.NBC.k5_m; % 1/s
 k6_p = P.NBC.k6_p; % 1/s
@@ -110,6 +113,7 @@ for i = 1:n_c
     
     G_ENaC = cell_struct.scaled_rates.G_ENaC;
     G_CFTR = cell_struct.scaled_rates.G_CFTR;
+    G_CaCC = cell_struct.scaled_rates.G_CaCC;
     G_BK   = cell_struct.scaled_rates.G_BK;
     G_K_B  = cell_struct.scaled_rates.G_K_B;
     G_P_Na = cell_struct.scaled_rates.G_P_Na;
@@ -121,6 +125,17 @@ for i = 1:n_c
     
     L_B = cell_struct.scaled_rates.L_B; % um/s 
     L_A = cell_struct.scaled_rates.L_A; % um/s 
+    
+    alpha_NHE_A = cell_struct.scaled_rates.NHE.alpha_A;
+    alpha_NHE_B = cell_struct.scaled_rates.NHE.alpha_B;
+    
+    alpha_AE2_A = cell_struct.scaled_rates.AE2.alpha_A;
+    alpha_AE2_B = cell_struct.scaled_rates.AE2.alpha_B;
+    
+    alpha_NBC_A = cell_struct.scaled_rates.NBC.alpha_A;
+    alpha_NBC_B = cell_struct.scaled_rates.NBC.alpha_B;
+    
+    chi_C = cell_struct.scaled_rates.chi_C; % mol
     
     % read the cellular variables of this particular cell
     V_A   = x_c(1,i);
@@ -170,16 +185,17 @@ for i = 1:n_c
     % AE2
     J_AE2_A = alpha_AE2_A*(k3_p*k4_p*Cl_A.*HCO_C - k3_m*k4_m*Cl_C.*HCO_A)./(k3_p*Cl_A+k4_p*HCO_C+k3_m*HCO_A+k4_m*Cl_C).*w_C.* A_A_disc./A_A; % e-18 mol/s [1,n_loc_disc]
     J_AE2_B = alpha_AE2_B*(k3_p*k4_p*Cl_B.*HCO_C - k3_m*k4_m*Cl_C.*HCO_B)./(k3_p*Cl_B+k4_p*HCO_C+k3_m*HCO_B+k4_m*Cl_C).*w_C; % e-18 mol/s 
-
+    
     % NBC 
     J_NBC_B = alpha_NBC_B.*(k5_p*k6_p*Na_C.*HCO_C-k5_m*k6_m*Na_B*HCO_B)./(k5_p.*Na_C.*HCO_C+k6_p*k5_m+k6_m*Na_B*HCO_B).*w_C; % e-18 mol/s
     J_NBC_A = alpha_NBC_A.*(k5_p*k6_p*Na_C.*HCO_C-k5_m*k6_m.*Na_A.*HCO_A)./(k5_p.*Na_C.*HCO_C+k6_p*k5_m+k6_m.*Na_A.*HCO_A).*w_C.* A_A_disc./A_A; % e-18 mol/s [1,n_loc_disc]
     
-    % CFTR Apical 
+    % CFTR
     V_A_Cl = 1e3*R*T/(-1*F).*log(Cl_A./Cl_C); % mV [1,n_loc_disc]
     I_CFTR = G_CFTR .* A_A_disc .* (V_A - V_A_Cl); % e-6 nA [1,n_loc_disc]
+    I_CaCC = G_CaCC .* A_A_disc .* (V_A - V_A_Cl); % e-6 nA [1,n_loc_disc]
     
-    % CFTR_B Apical
+    % CFTR_B
     V_A_HCO = 1e3*R*T/((-1)*F).*log(HCO_A./HCO_C); % mV [1,n_loc_disc]
     I_CFTR_B = 0.25 * G_CFTR .* A_A_disc .* (V_A - V_A_HCO); % e-6 nA [1,n_loc_disc]
     
@@ -209,9 +225,9 @@ for i = 1:n_c
     I_P_K    = G_P_K .* A_A_disc .* (V_T - V_P_K); % e-6 nA [1,n_loc_disc]
     I_P_Cl   = G_P_Cl .* A_A_disc .* (V_T - V_P_Cl); % e-6 nA [1,n_loc_disc]
     
-   
+    
     % V_A e-15 c/s
-    dxcdt(1,i) = -(sum(F*J_NKA_A*1e3 + I_ENaC + I_BK + I_CFTR + I_CFTR_B + I_P_Na + I_P_K + I_P_Cl));
+    dxcdt(1,i) = -(sum(F*J_NKA_A*1e3 + I_ENaC + I_BK + I_CFTR + I_CaCC + I_CFTR_B + I_P_Na + I_P_K + I_P_Cl));
     % V_B e-15 c/s
     dxcdt(2,i) = -(F*J_NKA_B*1e3 + I_K_B - sum(I_P_Na + I_P_K + I_P_Cl));
     % w_C um^3
@@ -221,7 +237,7 @@ for i = 1:n_c
     % K_C mM/s
     dxcdt(5,i) = -dwdt*K_C/w_C + 1e3*(-sum(I_BK)./(F*w_C) - I_K_B./(F*w_C)) + 1e6*(2*(J_NKA_B+sum(J_NKA_A))/w_C);
     % Cl_C mM/s
-    dxcdt(6,i) = -dwdt*Cl_C/w_C + 1e3*(sum(I_CFTR)./(F*w_C)) + sum(J_AE2_A)/w_C + J_AE2_B/w_C;
+    dxcdt(6,i) = -dwdt*Cl_C/w_C + 1e3*(sum(I_CFTR)./(F*w_C)) + 1e3*(sum(I_CaCC)./(F*w_C)) + sum(J_AE2_A)/w_C + J_AE2_B/w_C;
     % HCO_C mM/s
     dxcdt(7,i) = -dwdt*HCO_C/w_C + 1e3*(sum(I_CFTR_B)./(F*w_C)) + sum(J_NBC_A)/w_C + J_NBC_B/w_C - sum(J_AE2_A)/w_C - J_AE2_B/w_C + J_buf_C/w_C;
     % H_C mM/s
@@ -234,17 +250,57 @@ for i = 1:n_c
     % K_A mM/s
     dxldt(2,loc_disc) = dxldt(2,loc_disc) - 1e6*(2*J_NKA_A./w_A) + 1e3*(I_BK./(F*w_A)) + 1e3*(I_P_K./(F*w_A));
     % Cl_A mM/s
-    dxldt(3,loc_disc) = dxldt(3,loc_disc) + 1e3*(-I_CFTR./(F*w_A)) + 1e3*(-I_P_Cl./(F*w_A)) - J_AE2_A./w_A;
+    dxldt(3,loc_disc) = dxldt(3,loc_disc) + 1e3*(-I_CFTR./(F*w_A)) + 1e3*(-I_CaCC./(F*w_A)) + 1e3*(-I_P_Cl./(F*w_A)) - J_AE2_A./w_A;
     % HCO_A mM/s
     dxldt(4,loc_disc) = dxldt(4,loc_disc) + 1e3*(-I_CFTR_B./(F*w_A)) - J_NBC_A./w_A + J_AE2_A./w_A + J_buf_A;
     % H_A mM/s
     dxldt(5,loc_disc) = dxldt(5,loc_disc) + J_NHE_A./w_A + J_buf_A;
     % CO_A mM/s
     dxldt(6,loc_disc) = dxldt(6,loc_disc) + J_CDF_A./w_A - J_buf_A;
+    
+    if displ
+        flux.V_A_Na(loc_disc) = V_A_Na;
+        flux.V_P_Na(loc_disc) = V_P_Na;
+        flux.V_A_K(loc_disc) = V_A_K;
+        flux.V_B_K(i) = V_B_K;
+        flux.V_P_K(loc_disc) = V_P_K;
+        flux.V_A_Cl(loc_disc) = V_A_Cl;
+        flux.V_P_Cl(loc_disc) = V_P_Cl;
+        flux.V_A_HCO(loc_disc) = V_A_HCO;
+        flux.J_NHE_A(loc_disc) = flux.J_NHE_A(loc_disc) + J_NHE_A;
+        flux.J_NHE_A_c(i) = sum(J_NHE_A);
+        flux.J_NHE_B(i) = J_NHE_B;
+        flux.J_AE2_A(loc_disc) = flux.J_AE2_A(loc_disc) + J_AE2_A;
+        flux.J_AE2_A_c(i) = sum(J_AE2_A);
+        flux.J_AE2_B(i) = J_AE2_B;
+        flux.J_NBC_A(loc_disc) = flux.J_NBC_A(loc_disc) + J_NBC_A;
+        flux.J_NBC_A_c(i) = sum(J_NBC_A);
+        flux.J_NBC_B(i) = J_NBC_B;
+        flux.J_NKA_A(loc_disc) = flux.J_NKA_A(loc_disc) + J_NKA_A;
+        flux.J_NKA_A_c(i) = sum(J_NKA_A);
+        flux.J_NKA_B(i) = J_NKA_B;
+        flux.J_buf_A(loc_disc) = flux.J_buf_A(loc_disc) + J_buf_A.*w_A;
+        flux.J_buf_C(i) = J_buf_C;
+        flux.I_ENaC(loc_disc) = flux.I_ENaC(loc_disc) + I_ENaC;
+        flux.I_ENaC_c(i) = sum(I_ENaC);
+        flux.I_P_Na(loc_disc) = flux.I_P_Na(loc_disc) + I_P_Na;
+        flux.I_P_Na_c(i) = sum(I_P_Na);
+        flux.I_BK(loc_disc) = flux.I_BK(loc_disc) + I_BK;
+        flux.I_BK_c(i) = sum(I_BK);
+        flux.I_K_B(i) = I_K_B;
+        flux.I_P_K(loc_disc) = flux.I_P_K(loc_disc) + I_P_K;
+        flux.I_P_K_c(i) = sum(I_P_K);
+        flux.I_CFTR(loc_disc) = flux.I_CFTR(loc_disc) + I_CFTR;
+        flux.I_CFTR_c(i) = sum(I_CFTR);
+        flux.I_CaCC(loc_disc) = flux.I_CaCC(loc_disc) + I_CaCC;
+        flux.I_P_Cl(loc_disc) = flux.I_P_Cl(loc_disc) + I_P_Cl;
+        flux.I_P_Cl_c(i) = sum(I_P_Cl);
+        flux.I_CFTR_B(loc_disc) = flux.I_CFTR_B(loc_disc) + I_CFTR_B;
+    end
 end
 
 % compute the fluid flow rate in the lumen
-v_secreted = zeros(1,n_l); % um^3/s volume flow rate of fluid out of each lumen disc
+v_secreted = zeros(1,n_l); % um^3/s accumulated volume flow rates of secreted fluid
 v_up = zeros(1,n_l); % um^3/s volume flow rate of fluid into each lumen disc
 x_up = zeros(size(x_l)); 
 
@@ -254,7 +310,7 @@ for i=n_l:-1:1
     
     % find upstream disc(s) of disc i
     i_up = find(ismember(disc_out, i));
-
+    
     % if no upstream disc, it is an acinus end disc, v_up = PSflow
     if isempty(i_up)
         v_up(i) = pv;
@@ -283,29 +339,13 @@ end
 % flatten the matrix to a column vector
 dxdt = [dxcdt(:); dxldt(:)];
 
-% 
-% if ~displ
-%     hold on
-%     plot(t,I_ENaC*1e-6,'.b')
-%     plot(t,I_BK*1e-6,'.r')
-%     plot(t,I_K_B*1e-6,'.y')
-%     plot(t,I_CFTR*1e-6,'.c')
-%     plot(t,J_NKA_A*F*1e-3,'.k')
-%     plot(t,J_NKA_B*F*1e-3,'.m')
-%     plot(t,J_AE2_A*F*w_C*1e-9,'+b')
-%     plot(t,J_AE2_B*F*w_C*1e-9,'+r')
-%     % plot(t,J_hyd_C*F*x(3)*1e-9,'*r')
-%     plot(t,J_buf_C*F*w_C*1e-9,'*b')
-%     plot(t,J_NHE_A*F*w_C*1e-9,'or')
-%     plot(t,J_NHE_B*F*w_C*1e-9,'ok')
-% end
-
+flow_rate = v.*A_L;
 
 % display for debugging and cross checking purposes
 if displ
-%     fprintf('initial P.S. flow rate: %2.2f  um3 \n',(v_up(1)*A_L)) % um^3/s
-%     fprintf('final P.S. flow rate:   %2.2f  um3 \n',(v(end)*A_L)) % um^3/s
-%     fprintf('percentage:             %2.2f  ',(v(end)-v_up(1))/v_up(1)*100)
+    fprintf('initial P.S. flow rate: %2.2f  um3 \n',(5*v_up(end)*A_L(end))) % um^3/s
+    fprintf('final P.S. flow rate:   %2.2f  um3 \n',(v(1)*A_L(1))) % um^3/s
+    fprintf('percentage:             %2.2f  ',(v(1)*A_L(1)-5*v_up(end)*A_L(end))/(5*v_up(end)*A_L(end))*100)
 %     fprintf('\n')
 %     fprintf('I_ENaC:       %.8d nA  \n',I_ENaC*1e-6)
 %     fprintf('I_BK:         %.8d nA  \n',I_BK*1e-6)
@@ -345,131 +385,337 @@ if displ
 %     fprintf('K flux A:  %.8d nA \n',I_BK*1e-6 + I_P_K*1e-6 - 2*J_NKA_A*1e-3*F)
 %     fprintf('Cl flux A: %.8d nA \n', I_P_Cl*1e-6 + I_CFTR*1e-6 + J_AE2_A*F*1e-9)
 %     fprintf('HC flux A: %.8d nA \n', I_CFTR_B*1e-6 - J_AE2_A*F*1e-9 - J_buf_A.*F.*w_A.*1e-9)
+
+    
+    IntPos = zeros(1,lumen_prop.n_disc);
+    IntPos(1) = lumen_prop.disc_length(1);
+    for i = 2:lumen_prop.n_disc
+        out = lumen_prop.disc_out_Vec(i);
+        IntPos(i) = lumen_prop.disc_length(i) + IntPos(out);
+    end
+    max_length = max(IntPos);
+    IntPos = max_length - IntPos;
+    % IntPos = IntPos(1:58);
+    % y_l = y_l(:,1:58);
+
+    CellPos = zeros(1,length(cell_prop));
+    CellType = zeros(2, length(cell_prop));
+    for i = 1:length(cell_prop)
+        CellPos(i) = cell_prop{i}.mean_dist;
+        if cell_prop{i}.type == "I"
+            CellType(:,i) = [1,0];
+        else
+            CellType(:,i) = [0,1];
+        end
+    end
+    CellPos = max_length - CellPos;
+    
+    figure(4)
+    subplot(4,4,1)
+    plot(CellPos,flux.V_A,'.')
+    hold on
+    plot(CellPos,flux.V_T,'.')
+    plot(IntPos,flux.V_A_Na,'.')
+    plot(IntPos,flux.V_P_Na,'.')
+    hold off
+    ylabel('mV')
+    legend('V_A','V_T','V_{A_{Na}}','V_{P_{Na}}')
+    
+    subplot(4,4,5)
+    plot(CellPos,flux.V_A,'.')
+    hold on
+    plot(CellPos,flux.V_T,'.')
+    plot(CellPos,flux.V_B,'.')
+    plot(IntPos,flux.V_A_K,'.')
+    plot(CellPos,flux.V_B_K,'.')
+    plot(IntPos,flux.V_P_K,'.')
+    hold off
+    ylabel('mV')
+    legend('V_A','V_T','V_B','V_{A_K}','V_{B_K}','V_{P_K}')
+    
+    subplot(4,4,9)
+    plot(CellPos,flux.V_A,'.')
+    hold on
+    plot(CellPos,flux.V_T,'.')
+    plot(IntPos,flux.V_A_Cl,'.')
+    plot(IntPos,flux.V_P_Cl,'.')
+    hold off
+    ylabel('mV')
+    legend('V_A','V_T','V_{A_{Cl}}','V_{P_{Cl}}')
+    
+    subplot(4,4,13)
+    plot(CellPos,flux.V_A,'.')
+    hold on
+    plot(IntPos,flux.V_A_HCO,'.')
+    hold off
+    ylabel('mV')
+    legend('V_A','V_{A_{HCO}}')
+    
+    subplot(4,4,3)
+    plot(IntPos,flux.J_NHE_A.*F.*1e-9,'.')
+    hold on
+    plot(CellPos,flux.J_NHE_B.*F.*1e-9,'.')
+    hold off
+    ylabel('Current nA')
+    legend('J_{NHE_A}','J_{NHE_B}')
+    
+    subplot(4,4,7)
+    plot(IntPos,flux.J_NKA_A*F*1e-3,'.')
+    hold on
+    plot(CellPos,flux.J_NKA_B*F*1e-3,'.')
+    hold off
+    ylabel('Current nA')
+    legend('J_{NKA_A}','J_{NKA_B}')
+    
+    subplot(4,4,11)
+    plot(IntPos,flux.J_AE2_A.*F.*1e-9,'.')
+    hold on
+    plot(CellPos,flux.J_AE2_B.*F.*1e-9,'.')
+    hold off
+    ylabel('Current nA')
+    legend('J_{AE2_A}','J_{AE2_B}')
+    
+    subplot(4,4,15)
+    plot(IntPos,flux.J_NBC_A.*F.*1e-9,'.')
+    hold on
+    plot(CellPos,flux.J_NBC_B.*F.*1e-9,'.')
+    plot(IntPos,flux.J_buf_A.*F.*1e-9,'.')
+    plot(CellPos,flux.J_buf_C.*F.*1e-9,'.')
+    hold off
+    ylabel('Current nA')
+    legend('J_{NBC_A}','J_{NBC_B}','J_{buf_A}','J_{buf_C}') %'J_{CDF_A}','J_{CDF_B}'
+    
+    subplot(4,4,2)
+    plot(IntPos,flux.I_ENaC*1e-6,'.')
+    hold on
+    plot(IntPos,flux.I_P_Na*1e-6,'.')
+    hold off
+    ylabel('Current nA')
+    legend('I_{ENaC}','I_{P_{Na}}')
+    
+    subplot(4,4,6)
+    plot(IntPos,flux.I_BK*1e-6,'.')
+    hold on
+    plot(CellPos,flux.I_K_B*1e-6,'.')
+    plot(IntPos,flux.I_P_K*1e-6,'.')
+    hold off
+    ylabel('Current nA')
+    legend('I_{BK}','I_{K_B}','I_{P_K}')
+    
+    subplot(4,4,10)
+    plot(IntPos,flux.I_CFTR*1e-6,'.')
+    hold on
+    plot(IntPos,flux.I_CaCC*1e-6,'.')
+    plot(IntPos,flux.I_P_Cl*1e-6,'.')
+    hold off
+    ylabel('Current nA')
+    legend('I_{CFTR}','I_{CaCC}','I_{P_{Cl}}')
+    
+    subplot(4,4,14)
+    plot(IntPos,flux.I_CFTR_B*1e-6,'.')
+    ylabel('Current nA')
+    legend('I_{CFTR_B}')
+    
+    subplot(4,4,4)
+    plot(IntPos,flux.I_ENaC.*1e-6 - flux.J_NHE_A.*F.*1e-9 - flux.J_NBC_A.*F.*1e-9 + flux.I_P_Na.*1e-6 + 3*flux.J_NKA_A*1e-3*F,'.')
+    legend('Na flux')
+    subplot(4,4,8)
+    plot(IntPos,flux.I_BK.*1e-6 + flux.I_P_K.*1e-6 - 2*flux.J_NKA_A*1e-3*F,'.')
+    legend('K flux')
+    subplot(4,4,12)
+    plot(IntPos,flux.I_P_Cl.*1e-6 + flux.I_CFTR.*1e-6 + flux.J_AE2_A.*F*1e-9,'.')
+    hold on
+    plot(IntPos,flux.I_CFTR_B.*1e-6 - flux.J_AE2_A.*F.*1e-9 - flux.J_NBC_A.*F.*1e-9 - flux.J_buf_A.*F.*1e-9,'.')
+    hold off
+    legend('Cl flux','HCO flux')
+    subplot(4,4,16)
+    plot(IntPos,dwAdt,'.')
+    legend('water flux')
+    
+    i=2;
+%     c_idx = find(CellType(2,:));
+    c_idx = [1,12,23,34,35,43,45,51,54,56,60,75];
+    figure(1)
+    subplot(3,2,i)
+    x = CellPos(c_idx);
+    y = zeros(3,length(x));
+    y(1,:) = -flux.I_CFTR_c(c_idx).*1e-6;
+    y(2,:) = -flux.I_P_Cl_c(c_idx).*1e-6;
+    y(3,:) = -flux.J_AE2_A_c(c_idx).*F.*1e-9;
+    bar(x,y,2)
+    ylim([-0.1,0.1])
+    if i==1 
+        title('Apical Cl^- into lumen: Unstimulated')
+    ylabel('nA')
+    else
+        title('Stimulated') 
+    legend('I_{CFTR}', 'I_{P_{Cl}}', 'J_{AE2_A}')
+    end
+    
+    subplot(3,2,i+2)
+    x = CellPos(c_idx);
+    y = zeros(1,length(x));
+    y(1,:) = flux.J_AE2_B(c_idx).*F.*1e-9;
+    bar(x,y,0.4)
+    ylim([-0.1,0.1])
+    if i==1 
+        title('Basolateral Cl^- into cell: Unstimulated') 
+    ylabel('nA')
+    else
+        title('Stimulated') 
+    legend('J_{AE2_B}')
+    end
+    
+    subplot(3,2,i+4)
+    x = CellPos(c_idx);
+    y = zeros(1,length(CellPos));
+    y(1,:) = flux.I_P_Cl_c.*1e-6 + flux.I_CFTR_c.*1e-6 + flux.J_AE2_A_c.*F*1e-9;
+    bar(x,-y(c_idx),0.4)
+    ylim([-0.1,0.1])
+    if i==1
+        title('Net Cl^- into lumen: Unstimulated') 
+    ylabel('nA')
+    else
+        title('Stimulated') 
+    end
+    xlabel('Dist along duct (\mum)')
+    
+    figure(2)
+    subplot(3,2,i)
+    x = CellPos(c_idx);
+    y = zeros(4,length(x));
+    y(1,:) = flux.I_ENaC_c(c_idx).*1e-6;
+    y(2,:) = flux.I_P_Na_c(c_idx).*1e-6;
+    y(3,:) = -flux.J_NBC_A_c(c_idx).*F.*1e-9;
+    y(3,:) = -flux.J_NHE_A_c(c_idx).*F.*1e-9;
+    bar(x,y,2)
+    ylim([-0.4,0.1])
+    if i==1
+    title('Apical Na^+ into lumen: Unstimulated')
+    ylabel('nA')
+    else
+        title('Stimulated') 
+    legend('I_{ENaC}', 'I_{P_{Na}}', 'J_{NBC_A}', 'J_{NHE_A}')
+    end
+    
+    subplot(3,2,i+2)
+    x = CellPos(c_idx);
+    y = zeros(3,length(x));
+    y(1,:) = -3.*flux.J_NKA_B(c_idx).*F*1e-3;
+    y(2,:) = flux.J_NBC_B(c_idx).*F.*1e-9;
+    y(3,:) = flux.J_NHE_B(c_idx).*F.*1e-9;
+    bar(x,y,2)
+    ylim([-0.4,0.1])
+    if i==1
+    title('Basolateral Na^+ into cell: Unstimulated')
+    ylabel('nA')
+    else
+        title('Stimulated') 
+    legend('J_{NKA_B}','J_{NBC_B}', 'J_{NHE_B}')
+    end
+    
+    subplot(3,2,i+4)
+    x = CellPos(c_idx);
+    y = zeros(1,length(CellPos));
+    y(1,:) = flux.I_ENaC_c.*1e-6 - flux.J_NHE_A_c.*F.*1e-9 - flux.J_NBC_A_c.*F.*1e-9 + flux.I_P_Na_c.*1e-6;
+    bar(x,y(c_idx),0.4)
+    ylim([-0.4,0.1])
+    if i==1
+    title('Net Na^+ into lumen: Unstimulated') 
+    ylabel('nA')
+    else
+        title('Stimulated') 
+    end
+    xlabel('Dist along duct (\mum)')
     
     
-%     CellPos = zeros(1,length(cell_prop));
-%     for i = 1:length(cell_prop)
-%         CellPos(i) = cell_prop{i}.centroid(3);
-%     end
-%     [CellPos,I] = sort(CellPos);
-%     IntPos = lumen_prop.segment(1:end-1);
-% % 
-%     figure
-%     plot(IntPos, v*A_L);
-%     subplot(4,4,1)
-%     plot(IntPos,V_A_Na)
-%     hold on
-%     plot(IntPos,V_P_Na)
-%     plot(IntPos,V_A_f,'--')
-%     plot(IntPos,V_T_f,'--')
-%     hold off
-%     ylabel('mV')
-%     legend('V_{A_{Na}}','V_{P_{Na}}','V_A','V_T')
-%     
-%     subplot(4,4,5)
-%     plot(IntPos,V_A_K)
-%     hold on
-%     plot(CellPos,V_B_K(I))
-%     plot(IntPos,V_P_K)
-%     plot(IntPos,V_A_f,'--')
-%     plot(CellPos,V_B(I),'--')
-%     plot(IntPos,V_T_f,'--')
-%     hold off
-%     ylabel('mV')
-%     legend('V_{A_K}','V_{B_K}','V_{P_K}','V_A','V_B','V_T')
-%     
-%     subplot(4,4,9)
-%     plot(IntPos,V_A_Cl)
-%     hold on
-%     plot(IntPos,V_P_Cl)
-%     plot(IntPos,V_A_f,'--')
-%     plot(IntPos,V_T_f,'--')
-%     hold off
-%     ylabel('mV')
-%     legend('V_{A_{Cl}}','V_{P_{Cl}}','V_A','V_T')
-%     
-%     subplot(4,4,13)
-%     plot(IntPos,V_A_HCO)
-%     hold on
-%     plot(IntPos,V_A_f,'--')
-%     hold off
-%     ylabel('mV')
-%     legend('V_{A_{HCO}}','V_A')
-%     
-%     subplot(4,4,3)
-%     plot(CellPos,J_NHE_A_c.*F.*1e-9)
-%     hold on
-%     plot(CellPos,J_NHE_B.*F.*1e-9)
-%     hold off
-%     ylabel('Current nA')
-%     legend('J_{NHE_A}','J_{NHE_B}')
-%     
-%     subplot(4,4,7)
-%     plot(CellPos,J_NKA_A_c*F*1e-3)
-%     hold on
-%     plot(CellPos,J_NKA_B*F*1e-3)
-%     hold off
-%     ylabel('Current nA')
-%     legend('J_{NKA_A}','J_{NKA_B}')
-%     
-%     subplot(4,4,11)
-%     plot(CellPos,J_AE2_A_c.*F.*1e-9)
-%     hold on
-%     plot(CellPos,J_AE2_B.*F.*1e-9)
-%     hold off
-%     ylabel('Current nA')
-%     legend('J_{AE2_A}','J_{AE2_B}')
-%     
-%     subplot(4,4,15)
-%     plot(CellPos,J_NBC.*F.*1e-9)
-%     hold on
-%     plot(CellPos,J_buf_A.*F.*w_A.*1e-9*ConMat')
-%     plot(CellPos,J_buf_C.*F.*1e-9)
-%     hold off
-%     ylabel('Current nA')
-%     legend('J_{NBC}','J_{buf_A}','J_{buf_C}') %'J_{CDF_A}','J_{CDF_B}'
-%     
-%     subplot(4,4,2)
-%     plot(CellPos,I_ENaC_c*1e-6)
-%     hold on
-%     plot(CellPos,I_P_Na_c*1e-6,'--')
-%     hold off
-%     ylabel('Current nA')
-%     legend('I_{ENaC}','I_{P_{Na}}')
-%     
-%     subplot(4,4,6)
-%     plot(CellPos,I_BK_c*1e-6)
-%     hold on
-%     plot(CellPos,I_K_B*1e-6)
-%     plot(CellPos,I_P_K_c*1e-6,'--')
-%     hold off
-%     ylabel('Current nA')
-%     legend('I_{BK}','I_{K_B}','I_{P_K}')
-%     
-%     subplot(4,4,10)
-%     plot(CellPos,I_CFTR_c*1e-6)
-%     hold on
-%     plot(CellPos,I_P_Cl_c*1e-6,'--')
-%     hold off
-%     ylabel('Current nA')
-%     legend('I_{CFTR}','I_{P_{Cl}}')
-%     
-%     subplot(4,4,14)
-%     plot(CellPos,I_CFTR_B_c*1e-6)
-%     ylabel('Current nA')
-%     legend('I_{CFTR_B}')
-%     
-%     subplot(4,4,4)
-%     plot(CellPos,I_ENaC_c.*1e-6 - J_NHE_A_c.*F.*1e-9 + I_P_Na_c.*1e-6 + 3*J_NKA_A_c*1e-3*F)
-%     legend('Na flux')
-%     subplot(4,4,8)
-%     plot(CellPos,I_BK_c.*1e-6 + I_P_K_c.*1e-6 - 2*J_NKA_A_c*1e-3*F)
-%     legend('K flux')
-%     subplot(4,4,12)
-%     plot(CellPos,I_P_Cl_c.*1e-6 + I_CFTR_c.*1e-6 + J_AE2_A_c.*F*1e-9)
-%     legend('Cl flux')
-%     subplot(4,4,16)
-%     plot(CellPos,I_CFTR_B_c.*1e-6 - J_AE2_A_c.*F.*1e-9 - J_buf_A.*F.*w_A.*1e-9*ConMat')
-%     legend('HCO flux')
+    figure(3)
+    subplot(3,2,i)
+    x = CellPos(c_idx);
+    y = zeros(2,length(x));
+    y(1,:) = flux.I_BK_c(c_idx).*1e-6;
+    y(2,:) = flux.I_P_K_c(c_idx).*1e-6;
+    bar(x,y,2)
+    ylim([-0.1,0.3])
+    if i==1
+    title('Apical K^+ into lumen: Unstimulated')
+    ylabel('nA')
+    else
+        title('Stimulated') 
+    legend('I_{BK}', 'I_{P_{Na}}')
+    end
+    
+    subplot(3,2,i+2)
+    x = CellPos(c_idx);
+    y = zeros(2,length(x));
+    y(1,:) = 2.*flux.J_NKA_B(c_idx).*F*1e-3;
+    y(2,:) = -flux.I_K_B(c_idx).*1e-6;
+    bar(x,y,2)
+    ylim([-0.1,0.3])
+    if i==1
+    title('Basolateral K^+ into cell: Unstimulated')
+    ylabel('nA')
+    else
+        title('Stimulated') 
+    legend('J_{NKA_B}','I_{K_B}')
+    end
+    
+    subplot(3,2,i+4)
+    x = CellPos(c_idx);
+    y = zeros(1,length(CellPos));
+    y(1,:) = flux.I_BK_c.*1e-6 + flux.I_P_K_c.*1e-6;
+    bar(x,y(c_idx),0.5)
+    ylim([-0.1,0.3])
+    if i==1
+    title('Net K^+ into lumen: Unstimulated')
+    ylabel('nA')
+    else
+        title('Stimulated') 
+    end
+    xlabel('Dist along duct (\mum)')
+    
 end
+end
+
+function flux = initiate_flux(n_l,n_c,x_c)
+    flux = struct;
+    flux.V_A = x_c(1,:);
+    flux.V_B = x_c(2,:);
+    flux.V_T = flux.V_A - flux.V_B;
+    flux.V_A_Na = zeros(1, n_l);
+    flux.V_P_Na = zeros(1, n_l);
+    flux.V_A_K = zeros(1, n_l);
+    flux.V_B_K = zeros(1, n_c);
+    flux.V_P_K = zeros(1, n_l);
+    flux.V_A_Cl = zeros(1, n_l);
+    flux.V_P_Cl = zeros(1, n_l);
+    flux.V_A_HCO = zeros(1, n_l);
+    flux.J_NHE_A = zeros(1, n_l);
+    flux.J_NHE_A_c = zeros(1, n_c);
+    flux.J_NHE_B = zeros(1, n_c);
+    flux.J_AE2_A = zeros(1, n_l);
+    flux.J_AE2_A_c = zeros(1, n_c);
+    flux.J_AE2_B = zeros(1, n_c);
+    flux.J_NBC_A = zeros(1, n_l);
+    flux.J_NBC_A_c = zeros(1, n_c);
+    flux.J_NBC_B = zeros(1, n_c);
+    flux.J_NKA_A = zeros(1, n_l);
+    flux.J_NKA_B = zeros(1, n_c);
+    flux.I_ENaC = zeros(1, n_l);
+    flux.I_ENaC_c = zeros(1, n_c);
+    flux.I_P_Na = zeros(1, n_l);
+    flux.I_P_Na_c = zeros(1, n_c);
+    flux.I_BK = zeros(1, n_l);
+    flux.I_BK_c = zeros(1, n_c);
+    flux.I_K_B = zeros(1, n_c);
+    flux.I_P_K = zeros(1, n_l);
+    flux.I_P_K_c = zeros(1, n_c);
+    flux.I_CFTR = zeros(1, n_l);
+    flux.I_CFTR_c = zeros(1, n_c);
+    flux.I_CaCC = zeros(1, n_l);
+    flux.I_P_Cl = zeros(1, n_l);
+    flux.I_P_Cl_c = zeros(1, n_c);
+    flux.I_CFTR_B = zeros(1, n_l);
+    flux.J_buf_A = zeros(1, n_l);
+    flux.J_buf_C = zeros(1, n_c);
 end
