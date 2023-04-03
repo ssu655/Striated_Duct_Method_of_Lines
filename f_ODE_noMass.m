@@ -116,6 +116,8 @@ for i = 1:n_c
     G_CaCC = cell_struct.scaled_rates.G_CaCC;
     G_BK   = cell_struct.scaled_rates.G_BK;
     G_K_B  = cell_struct.scaled_rates.G_K_B;
+    G_Cl_B = cell_struct.scaled_rates.G_Cl_B;
+    G_Na_B = cell_struct.scaled_rates.G_Na_B;
     G_P_Na = cell_struct.scaled_rates.G_P_Na;
     G_P_K  = cell_struct.scaled_rates.G_P_K;
     G_P_Cl = cell_struct.scaled_rates.G_P_Cl;
@@ -183,7 +185,9 @@ for i = 1:n_c
     J_NHE_B = alpha_NHE_B*(k1_p*k2_p*Na_B *H_C-k1_m*k2_m*Na_C *H_B)./(k1_p*Na_B+k2_p*H_C+k1_m*H_B+k2_m*Na_C).*w_C; % e-18 mol/s 
 
     % AE2
-    J_AE2_A = alpha_AE2_A*(k3_p*k4_p*Cl_A.*HCO_C - k3_m*k4_m*Cl_C.*HCO_A)./(k3_p*Cl_A+k4_p*HCO_C+k3_m*HCO_A+k4_m*Cl_C).*w_C.* A_A_disc./A_A; % e-18 mol/s [1,n_loc_disc]
+    e_term = exp(F*0.001*V_A/(R*T));
+    J_AE2_A = alpha_AE2_A*5e8.*(Cl_A.*HCO_C.^2 - e_term.*Cl_C.*HCO_A.^2)./(k3_p*Cl_A.^2+k4_p*HCO_C.^2+k3_m*HCO_A.^2+k4_m*Cl_C.^2).*w_C.* A_A_disc./A_A; % e-18 mol/s [1,n_loc_disc]
+%     J_AE2_A = alpha_AE2_A*(k3_p*k4_p*Cl_A.*HCO_C - k3_m*k4_m*Cl_C.*HCO_A)./(k3_p*Cl_A+k4_p*HCO_C+k3_m*HCO_A+k4_m*Cl_C).*w_C.* A_A_disc./A_A; % e-18 mol/s [1,n_loc_disc]
     J_AE2_B = alpha_AE2_B*(k3_p*k4_p*Cl_B.*HCO_C - k3_m*k4_m*Cl_C.*HCO_B)./(k3_p*Cl_B+k4_p*HCO_C+k3_m*HCO_B+k4_m*Cl_C).*w_C; % e-18 mol/s 
     
     % NBC 
@@ -203,9 +207,17 @@ for i = 1:n_c
     V_A_K = 1e3*R*T/F.*log(K_A./K_C); % mV  [1,n_loc_disc]
     I_BK = G_BK .* A_A_disc .* (V_A - V_A_K); % e-6 nA 
 
+    % I_Na_B Basolateral
+    V_B_Na = 1e3*R*T/F.*log(Na_B./Na_C); % mV
+    I_Na_B = G_Na_B * A_B .* (V_B - V_B_Na); % e-6 nA 
+    
     % I_K_B Basolateral
     V_B_K = 1e3*R*T/F.*log(K_B./K_C); % mV
     I_K_B = G_K_B * A_B .* (V_B - V_B_K); % e-6 nA 
+    
+    % I_Cl_B Basolateral
+    V_B_Cl = 1e3*R*T/(-1*F).*log(Cl_B./Cl_C); % mV
+    I_Cl_B = G_Cl_B * A_B .* (V_B - V_B_Cl); % e-6 nA 
 
     % ENaC Apical
     V_A_Na = 1e3*R*T/F*log(Na_A./Na_C); % mV  [1,n_loc_disc]
@@ -227,19 +239,19 @@ for i = 1:n_c
     
     
     % V_A e-15 c/s
-    dxcdt(1,i) = -(sum(F*J_NKA_A*1e3 + I_ENaC + I_BK + I_CFTR + I_CaCC + I_CFTR_B + I_P_Na + I_P_K + I_P_Cl));
+    dxcdt(1,i) = -100000.*(sum(F*J_NKA_A*1e3 + I_ENaC + I_BK + I_CFTR + I_CaCC + I_CFTR_B + I_P_Na + I_P_K + I_P_Cl - F.*J_AE2_A*1e-3));
     % V_B e-15 c/s
-    dxcdt(2,i) = -(F*J_NKA_B*1e3 + I_K_B - sum(I_P_Na + I_P_K + I_P_Cl));
+    dxcdt(2,i) = -100000.*(F*J_NKA_B*1e3 + I_K_B + I_Na_B + I_Cl_B - sum(I_P_Na + I_P_K + I_P_Cl));
     % w_C um^3
     dxcdt(3,i) = dwdt;
     % Na_C mM/s
-    dxcdt(4,i) = -dwdt*Na_C/w_C + 1e3*(-sum(I_ENaC)./(F*w_C)) - 1e6*(3*(J_NKA_B+sum(J_NKA_A))/w_C) + sum(J_NBC_A)/w_C + J_NBC_B/w_C + sum(J_NHE_A)/w_C + J_NHE_B/w_C;
+    dxcdt(4,i) = -dwdt*Na_C/w_C + 1e3*(-sum(I_ENaC)./(F*w_C) - I_Na_B./(F*w_C)) - 1e6*(3*(J_NKA_B+sum(J_NKA_A))/w_C) + sum(J_NBC_A)/w_C + J_NBC_B/w_C + sum(J_NHE_A)/w_C + J_NHE_B/w_C;
     % K_C mM/s
     dxcdt(5,i) = -dwdt*K_C/w_C + 1e3*(-sum(I_BK)./(F*w_C) - I_K_B./(F*w_C)) + 1e6*(2*(J_NKA_B+sum(J_NKA_A))/w_C);
     % Cl_C mM/s
-    dxcdt(6,i) = -dwdt*Cl_C/w_C + 1e3*(sum(I_CFTR)./(F*w_C)) + 1e3*(sum(I_CaCC)./(F*w_C)) + sum(J_AE2_A)/w_C + J_AE2_B/w_C;
+    dxcdt(6,i) = -dwdt*Cl_C/w_C + 1e3*(sum(I_CFTR)./(F*w_C) + sum(I_CaCC)./(F*w_C) + I_Cl_B./(F*w_C)) + sum(J_AE2_A)/w_C + J_AE2_B/w_C;
     % HCO_C mM/s
-    dxcdt(7,i) = -dwdt*HCO_C/w_C + 1e3*(sum(I_CFTR_B)./(F*w_C)) + sum(J_NBC_A)/w_C + J_NBC_B/w_C - sum(J_AE2_A)/w_C - J_AE2_B/w_C + J_buf_C/w_C;
+    dxcdt(7,i) = -dwdt*HCO_C/w_C + 1e3*(sum(I_CFTR_B)./(F*w_C)) + sum(J_NBC_A)/w_C + J_NBC_B/w_C - 2*sum(J_AE2_A)/w_C - J_AE2_B/w_C + J_buf_C/w_C;
     % H_C mM/s
     dxcdt(8,i) = -dwdt*H_C/w_C - sum(J_NHE_A)/w_C - J_NHE_B/w_C + J_buf_C/w_C;
     % CO_C mM/s
@@ -252,7 +264,7 @@ for i = 1:n_c
     % Cl_A mM/s
     dxldt(3,loc_disc) = dxldt(3,loc_disc) + 1e3*(-I_CFTR./(F*w_A)) + 1e3*(-I_CaCC./(F*w_A)) + 1e3*(-I_P_Cl./(F*w_A)) - J_AE2_A./w_A;
     % HCO_A mM/s
-    dxldt(4,loc_disc) = dxldt(4,loc_disc) + 1e3*(-I_CFTR_B./(F*w_A)) - J_NBC_A./w_A + J_AE2_A./w_A + J_buf_A;
+    dxldt(4,loc_disc) = dxldt(4,loc_disc) + 1e3*(-I_CFTR_B./(F*w_A)) - J_NBC_A./w_A + 2*J_AE2_A./w_A + J_buf_A;
     % H_A mM/s
     dxldt(5,loc_disc) = dxldt(5,loc_disc) + J_NHE_A./w_A + J_buf_A;
     % CO_A mM/s
@@ -288,6 +300,8 @@ for i = 1:n_c
         flux.I_BK(loc_disc) = flux.I_BK(loc_disc) + I_BK;
         flux.I_BK_c(i) = sum(I_BK);
         flux.I_K_B(i) = I_K_B;
+        flux.I_Cl_B(i) = I_Cl_B;
+        flux.I_Na_B(i) = I_Na_B;
         flux.I_P_K(loc_disc) = flux.I_P_K(loc_disc) + I_P_K;
         flux.I_P_K_c(i) = sum(I_P_K);
         flux.I_CFTR(loc_disc) = flux.I_CFTR(loc_disc) + I_CFTR;
@@ -346,46 +360,6 @@ if displ
     fprintf('initial P.S. flow rate: %2.2f  um3 \n',(5*v_up(end)*A_L(end))) % um^3/s
     fprintf('final P.S. flow rate:   %2.2f  um3 \n',(v(1)*A_L(1))) % um^3/s
     fprintf('percentage:             %2.2f  ',(v(1)*A_L(1)-5*v_up(end)*A_L(end))/(5*v_up(end)*A_L(end))*100)
-%     fprintf('\n')
-%     fprintf('I_ENaC:       %.8d nA  \n',I_ENaC*1e-6)
-%     fprintf('I_BK:         %.8d nA  \n',I_BK*1e-6)
-%     fprintf('I_K_B:        %.8d nA  \n',I_K_B*1e-6)
-%     fprintf('J_NKA_A:      %.8d nA  \n',J_NKA_A*F*1e-3)
-%     fprintf('J_NKA_B:      %.8d nA  \n',J_NKA_B*F*1e-3)
-%     fprintf('I_CFTR:       %.8d nA  \n',I_CFTR*1e-6)
-%     fprintf('I_CFTR_B:     %.8d nA  \n',I_CFTR_B*1e-6)
-%     fprintf('J_AE2_A:      %.8d nA  \n',J_AE2_A.*F.*1e-9)
-%     fprintf('J_AE2_B:      %.8d nA  \n',J_AE2_B.*F.*1e-9)
-%     fprintf('J_NBC:        %.8d nA  \n',J_NBC.*F.*1e-9)
-%     fprintf('J_NHE_A:      %.8d nA  \n',J_NHE_A.*F.*1e-9)
-%     fprintf('J_NHE_B:      %.8d nA  \n',J_NHE_B.*F.*1e-9)
-%     fprintf('J_CDF_A:      %.8d nA  \n',J_CDF_A.*F.*1e-9)
-%     fprintf('J_CDF_B:      %.8d nA  \n',J_CDF_B.*F.*1e-9)
-%     fprintf('J_buf_A:      %.8d nA  \n',J_buf_A.*F.*w_A.*1e-9)
-%     fprintf('J_buf_C:      %.8d nA  \n',J_buf_C.*F.*1e-9)
-%     fprintf('J_A:          %.8d nA  \n',J_A)
-%     fprintf('J_B:          %.8d nA  \n',J_B)
-%     fprintf(' \n')
-%     fprintf('V_A_K:     %.8d mV \n', V_A_K)
-%     fprintf('V_B_K:     %.8d mV \n', V_B_K)
-%     fprintf('V_A_Cl:    %.8d mV \n', V_A_Cl)
-%     fprintf('V_A_Na:    %.8d mV \n', V_A_Na)
-%     fprintf('V_A:       %.8d mV \n', x_c(1,:))
-%     fprintf('V_B:       %.8d mV \n', x_c(2,:))
-%     fprintf('V_T:       %.8d mV \n', V_T)
-%     fprintf(' \n')
-%     fprintf('V_P_Na:    %.8d mV \n', V_P_Na)
-%     fprintf('V_P_K:     %.8d mV \n', V_P_K)
-%     fprintf('V_P_Cl:    %.8d mV \n', V_P_Cl)
-%     fprintf('I_P_Na:    %.8d nA \n',I_P_Na*1e-6)
-%     fprintf('I_P_K:     %.8d nA \n',I_P_K*1e-6)
-%     fprintf('I_P_Cl:    %.8d nA \n',I_P_Cl*1e-6)   
-%     fprintf(' \n') 
-%     fprintf('Na flux A: %.8d nA \n',I_ENaC*1e-6 - J_NHE_A*F*1e-9 + I_P_Na*1e-6 + 3*J_NKA_A*1e-3*F)
-%     fprintf('K flux A:  %.8d nA \n',I_BK*1e-6 + I_P_K*1e-6 - 2*J_NKA_A*1e-3*F)
-%     fprintf('Cl flux A: %.8d nA \n', I_P_Cl*1e-6 + I_CFTR*1e-6 + J_AE2_A*F*1e-9)
-%     fprintf('HC flux A: %.8d nA \n', I_CFTR_B*1e-6 - J_AE2_A*F*1e-9 - J_buf_A.*F.*w_A.*1e-9)
-
     
     IntPos = zeros(1,lumen_prop.n_disc);
     IntPos(1) = lumen_prop.disc_length(1);
@@ -416,10 +390,11 @@ if displ
     hold on
     plot(CellPos,flux.V_T,'.')
     plot(IntPos,flux.V_A_Na,'.')
+    plot(CellPos,flux.V_B_Na,'.')
     plot(IntPos,flux.V_P_Na,'.')
     hold off
     ylabel('mV')
-    legend('V_A','V_T','V_{A_{Na}}','V_{P_{Na}}')
+    legend('V_A','V_T','V_{A_{Na}}','V_{B_{Na}}','V_{P_{Na}}')
     
     subplot(4,4,5)
     plot(CellPos,flux.V_A,'.')
@@ -438,10 +413,11 @@ if displ
     hold on
     plot(CellPos,flux.V_T,'.')
     plot(IntPos,flux.V_A_Cl,'.')
+    plot(CellPos,flux.V_B_Cl,'.')
     plot(IntPos,flux.V_P_Cl,'.')
     hold off
     ylabel('mV')
-    legend('V_A','V_T','V_{A_{Cl}}','V_{P_{Cl}}')
+    legend('V_A','V_T','V_{A_{Cl}}','V_{B_{Cl}}','V_{P_{Cl}}')
     
     subplot(4,4,13)
     plot(CellPos,flux.V_A,'.')
@@ -488,10 +464,11 @@ if displ
     subplot(4,4,2)
     plot(IntPos,flux.I_ENaC*1e-6,'.')
     hold on
+    plot(CellPos,flux.I_Na_B*1e-6,'.')
     plot(IntPos,flux.I_P_Na*1e-6,'.')
     hold off
     ylabel('Current nA')
-    legend('I_{ENaC}','I_{P_{Na}}')
+    legend('I_{ENaC}','I_{Na_B}','I_{P_{Na}}')
     
     subplot(4,4,6)
     plot(IntPos,flux.I_BK*1e-6,'.')
@@ -506,10 +483,11 @@ if displ
     plot(IntPos,flux.I_CFTR*1e-6,'.')
     hold on
     plot(IntPos,flux.I_CaCC*1e-6,'.')
+    plot(CellPos,flux.I_Cl_B*1e-6,'.')
     plot(IntPos,flux.I_P_Cl*1e-6,'.')
     hold off
     ylabel('Current nA')
-    legend('I_{CFTR}','I_{CaCC}','I_{P_{Cl}}')
+    legend('I_{CFTR}','I_{CaCC}','I_{Cl_B}','I_{P_{Cl}}')
     
     subplot(4,4,14)
     plot(IntPos,flux.I_CFTR_B*1e-6,'.')

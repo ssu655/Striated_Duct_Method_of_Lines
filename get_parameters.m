@@ -44,8 +44,8 @@ function [P_i, P_s] = get_parameters(Conc,PSflow)
 %
 
 addpath('ini2struct')
-% INI = ini2struct('parms_SMG.ini');
-INI = ini2struct('parms_default.ini');
+% INI = ini2struct('parms_in-vivo.ini');
+INI = ini2struct('parms_ex-vivo.ini');
 param_s = INI.striated;
 param_i = INI.intercalated;
 param_c = INI.duct_common;
@@ -72,7 +72,7 @@ end
 
 function P = copy_param(param)
 
-a = 40; % for parotid
+a = 1;%40; % for parotid
 % a = 60; % for SMG
 
 % apical channels conductances 
@@ -86,6 +86,8 @@ P.G_BK = a*param.g_bk;% 6;
 
 % basolateral channels conductances 
 P.G_K_B = a*param.g_k_b;% 0.5;
+P.G_Na_B = a*param.g_na_b;% 0.5;
+P.G_Cl_B = a*param.g_cl_b;% 0.5;
 
 % apical or basolateral transporter rates
 P.NBC = struct;

@@ -24,7 +24,7 @@ function [cell_prop, lumen_prop] = process_mesh_info(L)
 %            - disc_out_Vec [1, n_disc]
 %            - 
 %%
-mesh_folder = "MiniGlandMesh_211022";
+mesh_folder = "MiniGlandMesh_220505";
 D_fname = dir(strcat(mesh_folder,"/*_duct.ply"));
 D_fname = strcat(D_fname.folder, filesep, D_fname.name);
 [nodes, segments, radii, ~] = read_duct_tree_mesh(D_fname);

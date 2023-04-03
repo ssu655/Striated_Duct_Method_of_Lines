@@ -83,35 +83,37 @@ x_l = reshape(x(1+n_c*9 : end),6,[]); %[6, n_l]
 y_c = reshape(y(end,1 : n_c*9),9,[]); %[9, n_c]
 y_l = reshape(y(end,1+n_c*9 : end),6,[]); %[6, n_l]
 
-disp('Electroneutrality check cell: initial (mol)')
-disp((x_c(4,:)+x_c(5,:)-x_c(6,:)-x_c(7,:)+x_c(8,:)).*x_c(3,:)*1e-18-1.5*P.chi_C)
+% Electroneutrality checks
+% 
+% disp('Electroneutrality check cell: initial (mol)')
+% disp((x_c(4,:)+x_c(5,:)-x_c(6,:)-x_c(7,:)+x_c(8,:)).*x_c(3,:)*1e-18-1.5*P.chi_C)
+% 
+% disp('Electroneutrality check cell: initial (mM)')
+% disp((x_c(4,:)+x_c(5,:)-x_c(6,:)-x_c(7,:)+x_c(8,:)-1.5*P.chi_C./x_c(3,:)*1e18))
+% 
+% disp('Electroneutrality check cell: final (mol)')
+% disp((y_c(4,:)+y_c(5,:)-y_c(6,:)-y_c(7,:)+y_c(8,:)).*y_c(3,:)*1e-18-1.5*P.chi_C)
+% 
+% disp('Electroneutrality check cell: final (mM)')
+% disp((y_c(4,:)+y_c(5,:)-y_c(6,:)-y_c(7,:)+y_c(8,:)-1.5*P.chi_C./y_c(3,:)*1e18))
 
-disp('Electroneutrality check cell: initial (mM)')
-disp((x_c(4,:)+x_c(5,:)-x_c(6,:)-x_c(7,:)+x_c(8,:)-1.5*P.chi_C./x_c(3,:)*1e18))
+% disp('Electroneutrality check lumen: initial (mM)')
+% disp((x_l(2,1)+x_l(3,1)-x_l(4,1)-x_l(5,1)+x_l(6,1)).*s_lumen_prop.disc_volume*1e-18)
+% disp('Electroneutrality check lumen: final (mM)')
+% disp((y_l(2,:)+y_l(3,:)-y_l(4,:)-y_l(5,:)+y_l(6,:)).*s_lumen_prop.disc_volume*1e-18)
 
-disp('Electroneutrality check cell: final (mol)')
-disp((y_c(4,:)+y_c(5,:)-y_c(6,:)-y_c(7,:)+y_c(8,:)).*y_c(3,:)*1e-18-1.5*P.chi_C)
+% disp('cellular osmolarity (initial condition)')
+% disp(sum(x_c(4:9,1)) + P.chi_C./x_c(3,1)*1e18)
 
-disp('Electroneutrality check cell: final (mM)')
-disp((y_c(4,:)+y_c(5,:)-y_c(6,:)-y_c(7,:)+y_c(8,:)-1.5*P.chi_C./y_c(3,:)*1e18))
+% disp('cellular osmolarity (steady state)')
+% disp(sum(y_c(4:9,:)) + P.chi_C./y_c(3,:)*1e18)
 
-disp('Electroneutrality check lumen: initial (mM)')
-disp((x_l(2,1)+x_l(3,1)-x_l(4,1)-x_l(5,1)+x_l(6,1)).*s_lumen_prop.disc_volume*1e-18)
-disp('Electroneutrality check lumen: final (mM)')
-disp((y_l(2,:)+y_l(3,:)-y_l(4,:)-y_l(5,:)+y_l(6,:)).*s_lumen_prop.disc_volume*1e-18)
-
-disp('cellular osmolarity (initial condition)')
-disp(sum(x_c(4:9,1)) + P.chi_C./x_c(3,1)*1e18)
-
-disp('cellular osmolarity (steady state)')
-disp(sum(y_c(4:9,:)) + P.chi_C./y_c(3,:)*1e18)
-
-disp('Lumenal osmolarity (initial condition)')
-disp(sum(x_l(1:6,:)) + P.phi_A)
-disp('Lumenal osmolarity (steady state)')
-disp(sum(y_l(1:6,:)) + P.phi_A)
-disp('interstitium osmolarity')
-disp(sum(Int) + P.phi_B)
+% disp('Lumenal osmolarity (initial condition)')
+% disp(sum(x_l(1:6,:)) + P.phi_A)
+% disp('Lumenal osmolarity (steady state)')
+% disp(sum(y_l(1:6,:)) + P.phi_A)
+% disp('interstitium osmolarity')
+% disp(sum(Int) + P.phi_B)
 
 %% Plotting
 
