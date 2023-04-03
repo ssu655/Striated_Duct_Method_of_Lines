@@ -44,7 +44,10 @@ s_lumen_prop = lumen_prop;
 
 %% Parameter structure setup
 
-[P_i, P_s] = get_parameters(Conc,PSflow);
+parms_file = "parms_ex-vivo.ini";
+% parms_file = "parms_in-vivo.ini";
+
+[P_i, P_s] = get_parameters(Conc, PSflow, parms_file);
 s_cell_prop = scale_parameters(s_cell_prop, P_i, P_s);
 
 % Initial condition setup

@@ -1,4 +1,4 @@
-function [P_i, P_s] = get_parameters(Conc,PSflow)
+function [P_i, P_s] = get_parameters(Conc, PSflow, parms_file)
 
 % The nested structure of P is as follows:
 %
@@ -44,8 +44,7 @@ function [P_i, P_s] = get_parameters(Conc,PSflow)
 %
 
 addpath('ini2struct')
-% INI = ini2struct('parms_in-vivo.ini');
-INI = ini2struct('parms_ex-vivo.ini');
+INI = ini2struct(parms_file);
 param_s = INI.striated;
 param_i = INI.intercalated;
 param_c = INI.duct_common;
