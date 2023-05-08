@@ -32,7 +32,7 @@ end
 
 function scaled_rates = parameter_scalling(P, A_A, A_B, n_c)
 % the apical area used to scale the conductances G
-A = 104.719755; % um^2
+% A = 104.719755; % um^2
     
 area_A = 15;  % um^2
 area_B = 330; % um^2
