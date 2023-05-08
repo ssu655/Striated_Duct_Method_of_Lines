@@ -273,10 +273,12 @@ for i = 1:n_c
     if displ
         flux.V_A_Na(loc_disc) = V_A_Na;
         flux.V_P_Na(loc_disc) = V_P_Na;
+        flux.V_B_Na(i) = V_B_Na;
         flux.V_A_K(loc_disc) = V_A_K;
         flux.V_B_K(i) = V_B_K;
         flux.V_P_K(loc_disc) = V_P_K;
         flux.V_A_Cl(loc_disc) = V_A_Cl;
+        flux.V_B_Cl(i) = V_B_Cl;
         flux.V_P_Cl(loc_disc) = V_P_Cl;
         flux.V_A_HCO(loc_disc) = V_A_HCO;
         flux.J_NHE_A(loc_disc) = flux.J_NHE_A(loc_disc) + J_NHE_A;
@@ -292,6 +294,7 @@ for i = 1:n_c
         flux.J_NKA_A_c(i) = sum(J_NKA_A);
         flux.J_NKA_B(i) = J_NKA_B;
         flux.J_buf_A(loc_disc) = flux.J_buf_A(loc_disc) + J_buf_A.*w_A;
+        flux.J_buf_A_c(i) = sum(J_buf_A.*w_A);
         flux.J_buf_C(i) = J_buf_C;
         flux.I_ENaC(loc_disc) = flux.I_ENaC(loc_disc) + I_ENaC;
         flux.I_ENaC_c(i) = sum(I_ENaC);
@@ -307,9 +310,11 @@ for i = 1:n_c
         flux.I_CFTR(loc_disc) = flux.I_CFTR(loc_disc) + I_CFTR;
         flux.I_CFTR_c(i) = sum(I_CFTR);
         flux.I_CaCC(loc_disc) = flux.I_CaCC(loc_disc) + I_CaCC;
+        flux.I_CaCC_c(i) = sum(I_CaCC);
         flux.I_P_Cl(loc_disc) = flux.I_P_Cl(loc_disc) + I_P_Cl;
         flux.I_P_Cl_c(i) = sum(I_P_Cl);
         flux.I_CFTR_B(loc_disc) = flux.I_CFTR_B(loc_disc) + I_CFTR_B;
+        flux.I_CFTR_B_c(i) = sum(I_CFTR_B);
     end
 end
 
@@ -509,149 +514,126 @@ if displ
     subplot(4,4,16)
     plot(IntPos,dwAdt,'.')
     legend('water flux')
-    
-    i=2;
+   
 %     c_idx = find(CellType(2,:));
-    c_idx = [1,12,23,34,35,43,45,51,54,56,60,75];
-    figure(1)
-    subplot(3,2,i)
-    x = CellPos(c_idx);
-    y = zeros(3,length(x));
-    y(1,:) = -flux.I_CFTR_c(c_idx).*1e-6;
-    y(2,:) = -flux.I_P_Cl_c(c_idx).*1e-6;
-    y(3,:) = -flux.J_AE2_A_c(c_idx).*F.*1e-9;
-    bar(x,y,2)
-    ylim([-0.1,0.1])
-    if i==1 
-        title('Apical Cl^- into lumen: Unstimulated')
-    ylabel('nA')
-    else
-        title('Stimulated') 
-    legend('I_{CFTR}', 'I_{P_{Cl}}', 'J_{AE2_A}')
-    end
-    
-    subplot(3,2,i+2)
+%     c_idx = [1,12,23,34,35,43,45,51,54,56,60,75];
+    c_idx = [1,44,45,49,42,79,71,13,68,90,94,100];
+    t1 = 'WT:';
+
+    % x axis plot range, proximal and distal
+    lim_p = 0;%53;
+    lim_d = 145;
+    figure(5)
+    subplot(4,2,1)
     x = CellPos(c_idx);
     y = zeros(1,length(x));
-    y(1,:) = flux.J_AE2_B(c_idx).*F.*1e-9;
-    bar(x,y,0.4)
-    ylim([-0.1,0.1])
-    if i==1 
-        title('Basolateral Cl^- into cell: Unstimulated') 
-    ylabel('nA')
-    else
-        title('Stimulated') 
-    legend('J_{AE2_B}')
-    end
-    
-    subplot(3,2,i+4)
-    x = CellPos(c_idx);
-    y = zeros(1,length(CellPos));
-    y(1,:) = flux.I_P_Cl_c.*1e-6 + flux.I_CFTR_c.*1e-6 + flux.J_AE2_A_c.*F*1e-9;
-    bar(x,-y(c_idx),0.4)
-    ylim([-0.1,0.1])
-    if i==1
-        title('Net Cl^- into lumen: Unstimulated') 
-    ylabel('nA')
-    else
-        title('Stimulated') 
-    end
-    xlabel('Dist along duct (\mum)')
-    
-    figure(2)
-    subplot(3,2,i)
-    x = CellPos(c_idx);
-    y = zeros(4,length(x));
     y(1,:) = flux.I_ENaC_c(c_idx).*1e-6;
     y(2,:) = flux.I_P_Na_c(c_idx).*1e-6;
     y(3,:) = -flux.J_NBC_A_c(c_idx).*F.*1e-9;
-    y(3,:) = -flux.J_NHE_A_c(c_idx).*F.*1e-9;
+    y(4,:) = -flux.J_NHE_A_c(c_idx).*F.*1e-9;
     bar(x,y,2)
-    ylim([-0.4,0.1])
-    if i==1
-    title('Apical Na^+ into lumen: Unstimulated')
+    % ylim([-0.3,0.003])
+    xlim([lim_p,lim_d])
+    title(strcat(t1,': Apical Na^+ into lumen '))
     ylabel('nA')
-    else
-        title('Stimulated') 
     legend('I_{ENaC}', 'I_{P_{Na}}', 'J_{NBC_A}', 'J_{NHE_A}')
-    end
+    set(gca,'xtick',[])
     
-    subplot(3,2,i+2)
+    subplot(4,2,2)
     x = CellPos(c_idx);
-    y = zeros(3,length(x));
+    y = zeros(2,length(x));
     y(1,:) = -3.*flux.J_NKA_B(c_idx).*F*1e-3;
     y(2,:) = flux.J_NBC_B(c_idx).*F.*1e-9;
     y(3,:) = flux.J_NHE_B(c_idx).*F.*1e-9;
+    y(4,:) = -flux.I_Na_B(c_idx).*1e-6;
     bar(x,y,2)
-    ylim([-0.4,0.1])
-    if i==1
-    title('Basolateral Na^+ into cell: Unstimulated')
+    % ylim([-0.4,0.1])
+    xlim([lim_p,lim_d])
+    title(strcat(t1,': Basolateral Na^+ into cell '))
     ylabel('nA')
-    else
-        title('Stimulated') 
-    legend('J_{NKA_B}','J_{NBC_B}', 'J_{NHE_B}')
-    end
+    legend('J_{NKA_B}','J_{NBC_B}', 'J_{NHE_B}','I_{Na_B}')
+    set(gca,'xtick',[])
     
-    subplot(3,2,i+4)
-    x = CellPos(c_idx);
-    y = zeros(1,length(CellPos));
-    y(1,:) = flux.I_ENaC_c.*1e-6 - flux.J_NHE_A_c.*F.*1e-9 - flux.J_NBC_A_c.*F.*1e-9 + flux.I_P_Na_c.*1e-6;
-    bar(x,y(c_idx),0.4)
-    ylim([-0.4,0.1])
-    if i==1
-    title('Net Na^+ into lumen: Unstimulated') 
-    ylabel('nA')
-    else
-        title('Stimulated') 
-    end
-    xlabel('Dist along duct (\mum)')
-    
-    
-    figure(3)
-    subplot(3,2,i)
+    subplot(4,2,3)
     x = CellPos(c_idx);
     y = zeros(2,length(x));
     y(1,:) = flux.I_BK_c(c_idx).*1e-6;
     y(2,:) = flux.I_P_K_c(c_idx).*1e-6;
-    bar(x,y,2)
-    ylim([-0.1,0.3])
-    if i==1
-    title('Apical K^+ into lumen: Unstimulated')
+    bar(x,y,1.5)
+    xlim([lim_p,lim_d])
+    title(strcat(t1,': Apical K^+ into lumen '))
     ylabel('nA')
-    else
-        title('Stimulated') 
-    legend('I_{BK}', 'I_{P_{Na}}')
-    end
-    
-    subplot(3,2,i+2)
+    legend('I_{BK}', 'I_{P_{K}}')
+    set(gca,'xtick',[])
+
+    subplot(4,2,4)
     x = CellPos(c_idx);
     y = zeros(2,length(x));
     y(1,:) = 2.*flux.J_NKA_B(c_idx).*F*1e-3;
     y(2,:) = -flux.I_K_B(c_idx).*1e-6;
-    bar(x,y,2)
-    ylim([-0.1,0.3])
-    if i==1
-    title('Basolateral K^+ into cell: Unstimulated')
+    bar(x,y,1.5)
+    xlim([lim_p,lim_d])
+    title(strcat(t1,': Basolateral K^+ into cell '))
     ylabel('nA')
-    else
-        title('Stimulated') 
     legend('J_{NKA_B}','I_{K_B}')
-    end
-    
-    subplot(3,2,i+4)
+    set(gca,'xtick',[])
+
+    subplot(4,2,5)
     x = CellPos(c_idx);
-    y = zeros(1,length(CellPos));
-    y(1,:) = flux.I_BK_c.*1e-6 + flux.I_P_K_c.*1e-6;
-    bar(x,y(c_idx),0.5)
-    ylim([-0.1,0.3])
-    if i==1
-    title('Net K^+ into lumen: Unstimulated')
+    y = zeros(2,length(x));
+    y(1,:) = -flux.I_CFTR_c(c_idx).*1e-6-flux.I_CaCC_c(c_idx).*1e-6;
+    y(2,:) = -flux.I_P_Cl_c(c_idx).*1e-6;
+    y(3,:) = -flux.J_AE2_A_c(c_idx).*F.*1e-9;
+    bar(x,y,2)
+    xlim([lim_p,lim_d])
+    %ylim([-0.06,0.005])
+    title(strcat(t1,': Apical Cl^- into lumen '))
+    ylabel('nA') 
+    legend('I_{CFTR}', 'I_{P_{Cl}}', 'J_{AE_A}')
+    set(gca,'xtick',[])
+
+    subplot(4,2,6)
+    x = CellPos(c_idx);
+    y = zeros(2,length(x));
+    y(1,:) = flux.J_AE2_B(c_idx).*F.*1e-9;
+    y(2,:) = flux.I_Cl_B(c_idx).*1e-6;
+    bar(x,y,1.5)
+    xlim([lim_p,lim_d])
+    title(strcat(t1,': Basolateral Cl^- into cell ')) 
     ylabel('nA')
-    else
-        title('Stimulated') 
-    end
-    xlabel('Dist along duct (\mum)')
-    
+    legend('J_{AE_B}','I_{Cl_B}')
+    set(gca,'xtick',[])
+
+    subplot(4,2,7)
+    x = CellPos(c_idx);
+    y = zeros(2,length(x));
+    y(1,:) = -flux.I_CFTR_B_c(c_idx).*1e-6;
+    y(2,:) = flux.J_buf_A_c(c_idx).*F.*1e-9;
+    y(3,:) = 2.*flux.J_AE2_A_c(c_idx).*F.*1e-9;
+    y(4,:) = -flux.J_NBC_A_c(c_idx).*F.*1e-9;
+    bar(x,y,2)
+    xlim([lim_p,lim_d])
+    % ylim([-0.04,0.04])
+    title(strcat(t1,': Apical HCO_3^- into lumen '))
+    ylabel('nA')
+    xlabel('Duct entry                             Duct exit')
+    legend('I_{CFTR_B}', 'J_{buf_A}', 'J_{AE_A}', 'J_{NBC_A}')
+    set(gca,'xtick',[])
+
+    subplot(4,2,8)
+    x = CellPos(c_idx);
+    y = zeros(2,length(x));
+    y(1,:) = -flux.J_AE2_B(c_idx).*F.*1e-9;
+    y(2,:) = -flux.J_buf_C(c_idx).*F.*1e-9;
+    y(3,:) = flux.J_NBC_B(c_idx).*F.*1e-9;
+    bar(x,y,2)
+    xlim([lim_p,lim_d])
+    title(strcat(t1,': Basolateral HCO_3^- into cell ')) 
+    ylabel('nA')
+    legend('J_{AE_B}','J_{buf_C}','J_{NBC_B}')
+    xlabel('Duct entry                             Duct exit')
+    set(gca,'xtick',[])
+
 end
 end
 
@@ -661,11 +643,13 @@ function flux = initiate_flux(n_l,n_c,x_c)
     flux.V_B = x_c(2,:);
     flux.V_T = flux.V_A - flux.V_B;
     flux.V_A_Na = zeros(1, n_l);
+    flux.V_B_Na = zeros(1, n_c);
     flux.V_P_Na = zeros(1, n_l);
     flux.V_A_K = zeros(1, n_l);
     flux.V_B_K = zeros(1, n_c);
     flux.V_P_K = zeros(1, n_l);
     flux.V_A_Cl = zeros(1, n_l);
+    flux.V_B_Cl = zeros(1, n_c);
     flux.V_P_Cl = zeros(1, n_l);
     flux.V_A_HCO = zeros(1, n_l);
     flux.J_NHE_A = zeros(1, n_l);
@@ -691,9 +675,12 @@ function flux = initiate_flux(n_l,n_c,x_c)
     flux.I_CFTR = zeros(1, n_l);
     flux.I_CFTR_c = zeros(1, n_c);
     flux.I_CaCC = zeros(1, n_l);
+    flux.I_CaCC_c = zeros(1, n_c);
     flux.I_P_Cl = zeros(1, n_l);
     flux.I_P_Cl_c = zeros(1, n_c);
     flux.I_CFTR_B = zeros(1, n_l);
+    flux.I_CFTR_B_c = zeros(1, n_c);
     flux.J_buf_A = zeros(1, n_l);
+    flux.J_buf_A_c = zeros(1, n_c);
     flux.J_buf_C = zeros(1, n_c);
 end

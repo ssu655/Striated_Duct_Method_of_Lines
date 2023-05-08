@@ -32,24 +32,27 @@ end
 
 function scaled_rates = parameter_scalling(P, A_A, A_B, n_c)
 % the apical area used to scale the conductances G
-A = 104.719755;
+A = 104.719755; % um^2
     
+area_A = 15;  % um^2
+area_B = 330; % um^2
+
 scaled_rates = struct;
-scaled_rates.L_A    = n_c * P.L_A * A / A_A;
-scaled_rates.L_B    = n_c * P.L_B * A / A_B;
-scaled_rates.G_ENaC = n_c * P.G_ENaC * A / A_A;
-scaled_rates.G_CFTR = n_c * P.G_CFTR * A / A_A;
-scaled_rates.G_CaCC = n_c * P.G_CaCC * A / A_A;
-scaled_rates.G_BK   = n_c * P.G_BK * A / A_A;
-scaled_rates.G_K_B  = n_c * P.G_K_B * A / A_B;
-scaled_rates.G_Cl_B = n_c * P.G_Cl_B * A / A_B;
-scaled_rates.G_Na_B = n_c * P.G_Na_B * A / A_B;
-scaled_rates.G_P_Na = n_c * P.G_P_Na * A / A_A;
-scaled_rates.G_P_K  = n_c * P.G_P_K * A / A_A;
-scaled_rates.G_P_Cl = n_c * P.G_P_Cl * A / A_A;
+scaled_rates.L_A    = n_c * P.L_A * area_A / A_A;
+scaled_rates.L_B    = n_c * P.L_B * area_B / A_B;
+scaled_rates.G_ENaC = n_c * P.G_ENaC * area_A / A_A;
+scaled_rates.G_CFTR = n_c * P.G_CFTR * area_A / A_A;
+scaled_rates.G_CaCC = n_c * P.G_CaCC * area_A / A_A;
+scaled_rates.G_BK   = n_c * P.G_BK * area_A / A_A;
+scaled_rates.G_K_B  = n_c * P.G_K_B * area_B / A_B;
+scaled_rates.G_Cl_B = n_c * P.G_Cl_B * area_B / A_B;
+scaled_rates.G_Na_B = n_c * P.G_Na_B * area_B / A_B;
+scaled_rates.G_P_Na = n_c * P.G_P_Na * area_A / A_A;
+scaled_rates.G_P_K  = n_c * P.G_P_K * area_A / A_A;
+scaled_rates.G_P_Cl = n_c * P.G_P_Cl * area_A / A_A;
 scaled_rates.NKA    = P.NKA;
-scaled_rates.NKA.alpha_A = n_c * P.NKA.alpha_A * A / A_A;
-scaled_rates.NKA.alpha_B = n_c * P.NKA.alpha_B * A / A_B;
+scaled_rates.NKA.alpha_A = n_c * P.NKA.alpha_A * area_A / A_A;
+scaled_rates.NKA.alpha_B = n_c * P.NKA.alpha_B * area_B / A_B;
 
 % the protein molecules are multipled by the number of cells included in
 % a simplified cell

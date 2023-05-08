@@ -11,7 +11,7 @@
 
 % load("Acinus PDE Results\result_bicarb_smooth_VPLC0.002.mat")
 load("Acinus PDE Results/result_bicarb_VPLC0.004.mat")
-time_series.Q = time_series.Q*7;
+time_series.Q = time_series.Q*7;    
 % plot(time_series.time,time_series.Q)
 
 step = 0.1;
