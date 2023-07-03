@@ -76,7 +76,7 @@ options = odeset('RelTol',1e-8,'AbsTol',1e-10);
 [t,y] = ode15s(@(t,y) f_ODE_noMass(t,y,P,s_cell_prop,s_lumen_prop,0,0,0), tspan, x);
 toc
 
-% f_ODE_noMass(1,y(end,:),P,cell_prop,lumen_prop,1,0,0);
+% f_ODE_noMass(1,y(end,:),P,s_cell_prop,s_lumen_prop,1,0,0);
 
 % Sanity checks
 

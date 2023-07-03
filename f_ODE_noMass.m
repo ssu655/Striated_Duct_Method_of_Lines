@@ -517,11 +517,11 @@ if displ
    
 %     c_idx = find(CellType(2,:));
 %     c_idx = [1,12,23,34,35,43,45,51,54,56,60,75];
-    c_idx = [1,44,45,49,42,79,71,13,68,90,94,100];
+    c_idx = [44,45,49,42,71,64,79,13,68];
     t1 = 'WT:';
 
     % x axis plot range, proximal and distal
-    lim_p = 0;%53;
+    lim_p = 53;
     lim_d = 145;
     figure(5)
     subplot(4,2,1)
