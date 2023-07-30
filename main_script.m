@@ -15,18 +15,18 @@
 
 %% Model input setup
 
-L_int = 1; % um length of lumen discretisation interval
+L_int = 1; % um length of lumen discretisation interval 
 PSflow = 7*11.91; % um3/s volumetric primary saliva flow rate
 
 fields = {'Na'; 'K'; 'Cl'; 'HCO'; 'H'; 'CO'};
-Int = [140.2; 5.3; 102.6; 24.7; 1000*10^(-7.35); 1.28]; % concentration of interstitium
+Int = [140.2; 5.3; 102.6; 24.7+1000*10^(-7.35); 1000*10^(-7.35); 5]; % concentration of interstitium
 % PS = [143.5; 5.2; 114.5; 34.2; 1000*10^(-7.35); 1.28];  % concentration of Primary Saliva
-PS = [136.95; 6.8; 115.3; 28.47; 7.7260e-05; 1.28];  % concentration of Primary Saliva
-CIC = [17; 140; 22; 75; 1000*10^(-7.35); 1.28];  % cellular initial concentration
-LIC = [143.5; 5.2; 114.5; 34.2; 1000*10^(-7.35); 1.28]; % lumenal initial concentration
+PS = [136.95; 6.8; 115.3; 28.47+1000*10^(-7.3); 1000*10^(-7.3); 1];  % concentration of Primary Saliva
+CIC = [17; 140; 12; 25+1000*10^(-7.35); 1000*10^(-7.35); 2.6];  % cellular initial concentration, 2.7 in-vivo, 2.4 ex-vivo
+LIC = [136.95; 6.8; 115.3; 28.47+1000*10^(-7.3); 1000*10^(-7.3); 1]; % lumenal initial concentration
 Conc = struct;
 Conc.Int = cell2struct(num2cell(Int),fields);
-Conc.PS = cell2struct(num2cell(PS),fields);
+Conc.PS  = cell2struct(num2cell(PS),fields);
 Conc.CIC = cell2struct(num2cell(CIC),fields);
 Conc.LIC = cell2struct(num2cell(LIC),fields);
 
@@ -144,59 +144,60 @@ end
 [CellPos,I] = sort(CellPos); % [50, 100]
 CellPos = max_length - CellPos;
 
-%% Plotting the full model
+% Plotting the full model
 
 figure
 subplot(3,2,1)
-plot(CellPos, y_c(1,I),'.')
+plot(CellPos, y_c(1,I),'.','MarkerSize',10)
 hold on
-plot(CellPos, y_c(2,I),'.')
+plot(CellPos, y_c(2,I),'.','MarkerSize',10)
 hold off
-legend('V_A','V_B')
+legend('V_A','V_B','Location','east')
 ylabel('mV')
 title('Membrane Potential')
 subplot(3,2,2)
 w = y_c(3,I);
-plot(CellPos(find(CellType(1,I))), w(find(CellType(1,I))),'.')
+plot(CellPos(find(CellType(1,I))), w(find(CellType(1,I))),'.','MarkerSize',10)
 hold on
-plot(CellPos(find(CellType(2,I))), w(find(CellType(2,I))),'.')
+plot(CellPos(find(CellType(2,I))), w(find(CellType(2,I))),'.','MarkerSize',10)
 hold off
-legend('ID', 'SD')
+legend('ID', 'SD','Location','best')
 ylabel('\mum^3')
 title('Cell Volumn')
 subplot(3,2,3)
-plot(CellPos, y_c(4,I),'.')
+plot(CellPos, y_c(4,I),'.','MarkerSize',10)
 hold on
-plot(CellPos, y_c(5,I),'.')
-plot(CellPos, y_c(6,I),'.')
-plot(CellPos, y_c(7,I),'.')
+plot(CellPos, y_c(5,I),'.','MarkerSize',10)
+plot(CellPos, y_c(6,I),'.','MarkerSize',10)
+plot(CellPos, y_c(7,I),'.','MarkerSize',10)
 hold off
-legend('Na_C','K_C','Cl_C','HCO_C')
+legend('Na_C','K_C','Cl_C','HCO_C','Location','east')
 ylabel('mM')
 title('Cellular Concentration')
 subplot(3,2,4)
 w = -log10(y_c(8,I)*1e-3);
-plot(CellPos(find(CellType(1,I))), w(find(CellType(1,I))),'.')
+plot(CellPos(find(CellType(1,I))), w(find(CellType(1,I))),'.','MarkerSize',10)
 hold on
-plot(CellPos(find(CellType(2,I))), w(find(CellType(2,I))),'.')
+plot(CellPos(find(CellType(2,I))), w(find(CellType(2,I))),'.','MarkerSize',10)
 hold off
-legend('ID', 'SD')
+legend('ID', 'SD','Location','best')
 title('Cellular pH')
 subplot(3,2,5)
-plot(IntPos, y_l(1,:),'.')
+plot(IntPos, y_l(1,:),'.','MarkerSize',10)
 hold on
-plot(IntPos, y_l(2,:),'.')
-plot(IntPos, y_l(3,:),'.')
-plot(IntPos, y_l(4,:),'.')
+plot(IntPos, y_l(2,:),'.','MarkerSize',10)
+plot(IntPos, y_l(3,:),'.','MarkerSize',10)
+plot(IntPos, y_l(4,:),'.','MarkerSize',10)
 hold off
-legend('Na_A','K_A','Cl_A','HCO_A')
+legend('Na_A','K_A','Cl_A','HCO_A','Location','northeast')
 ylabel('mM')
 xlabel('Dist along duct (\mum)')
 title('Lumenal Concentration')
 subplot(3,2,6)
-plot(IntPos, -log10(y_l(5,:)*1e-3),'.')
+plot(IntPos, -log10(y_l(5,:)*1e-3),'.','MarkerSize',10)
 xlabel('Dist along duct (\mum)')
 title('Lumenal pH')
+set(gcf,'position',[100,50,600,900])
 
 %% Plotting the simplified cell model
 

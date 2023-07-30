@@ -18,12 +18,12 @@ for i = 1:length(cell_prop)
 %     end
     scaled_rates = parameter_scalling(P, A_A, A_B, n_c);
     
-    scaled_rates.NHE.alpha_A = P.NHE.alpha_A;
-    scaled_rates.NHE.alpha_B = P.NHE.alpha_B;
-    scaled_rates.AE2.alpha_A = P.AE2.alpha_A;
-    scaled_rates.AE2.alpha_B = P.AE2.alpha_B;
-    scaled_rates.NBC.alpha_A = P.NBC.alpha_A;
-    scaled_rates.NBC.alpha_B = P.NBC.alpha_B;
+    %scaled_rates.NHE.alpha_A = P.NHE.alpha_A;
+    %scaled_rates.NHE.alpha_B = P.NHE.alpha_B;
+%     scaled_rates.AE2.alpha_A = P.AE2.alpha_A;
+%     scaled_rates.AE2.alpha_B = P.AE2.alpha_B;
+    %scaled_rates.NBC.alpha_A = P.NBC.alpha_A;
+    %scaled_rates.NBC.alpha_B = P.NBC.alpha_B;
     
     cell_struct.scaled_rates = scaled_rates;
     cell_prop{i} = cell_struct;
@@ -53,6 +53,15 @@ scaled_rates.G_P_Cl = n_c * P.G_P_Cl * area_A / A_A;
 scaled_rates.NKA    = P.NKA;
 scaled_rates.NKA.alpha_A = n_c * P.NKA.alpha_A * area_A / A_A;
 scaled_rates.NKA.alpha_B = n_c * P.NKA.alpha_B * area_B / A_B;
+scaled_rates.NBC    = P.NBC;
+scaled_rates.NBC.G_A = n_c * P.NBC.G_A * area_A / A_A;
+scaled_rates.NBC.G_B = n_c * P.NBC.G_B * area_B / A_B;
+scaled_rates.NHE    = P.NHE;
+scaled_rates.NHE.G_A = n_c * P.NHE.G_A * area_A / A_A;
+scaled_rates.NHE.G_B = n_c * P.NHE.G_B * area_B / A_B;
+scaled_rates.AE     = P.AE;
+scaled_rates.AE.G_A = n_c * P.AE.G_A * area_A / A_A;
+scaled_rates.AE.G_B = n_c * P.AE.G_B * area_B / A_B;
 
 % the protein molecules are multipled by the number of cells included in
 % a simplified cell

@@ -31,10 +31,10 @@ CIC = cell2mat(struct2cell(Conc.CIC)); % convert the cellular IC to an array
 LIC = cell2mat(struct2cell(Conc.LIC)); % convert the lumenal IC to an array
 
 x_c(4:9,:) = repmat(CIC, 1, n_c);
-x_c(1,:) = -26.1257;
-x_c(2,:) = -52.2513;
+x_c(1,:) = -10;
+x_c(2,:) = -68;
 for i = 1:n_c
-    x_c(3,i) = 1000 * cell_prop{i}.n_c;
+    x_c(3,i) = 500 * cell_prop{i}.n_c;
 end
 
 x_l = repmat(LIC, 1, n_l);

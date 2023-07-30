@@ -62,6 +62,11 @@ end
 time_sample = [1:5000,5001:10:10001];
 
 t_sampled = t(time_sample);
-zzzz = zzzz(time_sample,:);
-flowrate = flowrate(time_sample,:);
 
+zzzz = zzzz(time_sample,:);
+save dynamic_data zzzz
+
+flowrate = flowrate(time_sample,:);
+save dynamic_flow flowrate
+
+save lumen_prop s_lumen_prop
