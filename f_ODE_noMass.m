@@ -168,8 +168,8 @@ for i = 1:n_c
     % water transport
     osm_c = chi_C./w_C*1e18; % osmolarity of cell due to proteins (chi)
     
-    J_B = 1e-18*L_B.*V_w.*(Na_C + K_C + Cl_C + HCO_C + osm_c - Na_B - K_B - Cl_B - HCO_B - phi_B); % um/s 
-    J_A = 1e-18*L_A.*V_w.*(Na_A + K_A + Cl_A + HCO_A + phi_A - Na_C - K_C - Cl_C - HCO_C - osm_c); % um/s [1, n_loc_disc]
+    J_B = 1e-14*L_B.*V_w.*(Na_C + K_C + Cl_C + HCO_C + osm_c - Na_B - K_B - Cl_B - HCO_B - phi_B); % um/s 
+    J_A = 1e-14*L_A.*V_w.*(Na_A + K_A + Cl_A + HCO_A + phi_A - Na_C - K_C - Cl_C - HCO_C - osm_c); % um/s [1, n_loc_disc]
     dwdt = A_B * J_B - sum(A_A_disc .* J_A); % um^3/s
     dwAdt(1,loc_disc) = dwAdt(1,loc_disc) + A_A_disc .* J_A; % um^3/s [1, n_loc_disc]
     
@@ -199,7 +199,7 @@ for i = 1:n_c
     beta2_p = ( k4_p*K_cl_ae.*HCO_B ) ./ ( K_cl_ae*K_hco_ae + K_hco_ae.*Cl_B + K_cl_ae.*HCO_B ); % /s
     beta2_m = ( k4_m*K_cl_ae.*HCO_C ) ./ ( K_cl_ae*K_hco_ae + K_hco_ae.*Cl_C + K_cl_ae.*HCO_C ); % /s
 
-    J_AE_B = G_AE_B .* A_B .* ( - beta1_p.*beta2_p + beta1_m.*beta2_m) ./ (beta1_p + beta1_m + beta2_p + beta2_m); % e-18 mol/s
+    J_AE_B = 1e10.* G_AE_B .* A_B .* ( - beta1_p.*beta2_p + beta1_m.*beta2_m) ./ (beta1_p + beta1_m + beta2_p + beta2_m); % e-18 mol/s
 
     e_term = exp(-F*0.001*V_A/(R*T));
     k4_m =  e_term/(K_1*K_2*K_3)*k4_p;
@@ -209,7 +209,7 @@ for i = 1:n_c
     alpha2_p = ( k4_p.*HCO_A.^2 ) ./ ( K_2.*Cl_A + HCO_A.^2);
     alpha2_m = ( k4_m.*K_1.*HCO_C.^2 ) ./ ( Cl_C + K_1.*HCO_C.^2 );
     
-    J_AE_A = G_AE_A .* A_A_disc .* (alpha1_m.*alpha2_m - alpha1_p.*alpha2_p)./(alpha1_p + alpha1_m + alpha2_p + alpha2_m); % e-18 mol/s
+    J_AE_A = 1e10.* G_AE_A .* A_A_disc .* (alpha1_m.*alpha2_m - alpha1_p.*alpha2_p)./(alpha1_p + alpha1_m + alpha2_p + alpha2_m); % e-18 mol/s
 
     % NBC 
     NH_B = Na_B .* HCO_B ./ (K_na_nbc.*K_hco_nbc);
@@ -226,32 +226,32 @@ for i = 1:n_c
         I_CFTR = G_CFTR.*90000 .* A_A_disc .* (V_A - V_A_Cl); % e-6 nA [1,n_loc_disc]
         I_CaCC = G_CaCC.*90000 .* A_A_disc .* (V_A - V_A_Cl); % e-6 nA [1,n_loc_disc]
     else
-        I_CFTR = G_CFTR .* A_A_disc .* F.^2 .* 1e-3.*V_A ./ (R*T) .* (Cl_C - Cl_A*exp(1e-3*V_A*F/(R*T))) / (1 - exp(1e-3*V_A*F/(R*T)));
-        I_CaCC = G_CaCC .* A_A_disc .* F.^2 .* 1e-3.*V_A ./ (R*T) .* (Cl_C - Cl_A*exp(1e-3*V_A*F/(R*T))) / (1 - exp(1e-3*V_A*F/(R*T)));
+        I_CFTR = 10.*G_CFTR .* A_A_disc .* F.^2 .* 1e-3.*V_A ./ (R*T) .* (Cl_C - Cl_A*exp(1e-3*V_A*F/(R*T))) / (1 - exp(1e-3*V_A*F/(R*T))); % e-6 nA [1,n_loc_disc]
+        I_CaCC = 10.*G_CaCC .* A_A_disc .* F.^2 .* 1e-3.*V_A ./ (R*T) .* (Cl_C - Cl_A*exp(1e-3*V_A*F/(R*T))) / (1 - exp(1e-3*V_A*F/(R*T))); % e-6 nA [1,n_loc_disc]
     end
     
     % CFTR_B
     V_A_HCO = 1e3*R*T/((-1)*F).*log(HCO_A./HCO_C); % mV [1,n_loc_disc]
     if ~GHK
-        I_CFTR_B = 0.25 * G_CFTR .*90000 .* A_A_disc .* (V_A - V_A_HCO); % e-6 nA [1,n_loc_disc]
+        I_CFTR_B = 0.25 .* G_CFTR .*90000 .* A_A_disc .* (V_A - V_A_HCO); % e-6 nA [1,n_loc_disc]
     else
-        I_CFTR_B = 0.25 * G_CFTR .* A_A_disc .* F.^2 .* 1e-3.*V_A ./ (R*T) .* (HCO_C - HCO_A*exp(1e-3*V_A*F/(R*T))) / (1 - exp(1e-3*V_A*F/(R*T)));
+        I_CFTR_B = 10.*0.25 .* G_CFTR .* A_A_disc .* F.^2 .* 1e-3.*V_A ./ (R*T) .* (HCO_C - HCO_A*exp(1e-3*V_A*F/(R*T))) / (1 - exp(1e-3*V_A*F/(R*T))); % e-6 nA [1,n_loc_disc]
     end
     
-    % ENaC Apical
-    V_A_Na = 1e3*R*T/F*log(Na_A./Na_C); % mV  [1,n_loc_disc]
-    if ~ GHK
-        I_ENaC = G_ENaC .*100000 .* A_A_disc .* (V_A - V_A_Na); % e-6 nA
-    else
-        I_ENaC = G_ENaC .* A_A_disc .* F.^2 .* 1e-3.*V_A ./ (R*T) .* (Na_C - Na_A*exp(-1e-3*V_A*F/(R*T))) / (1 - exp(-1e-3*V_A*F/(R*T))); % e-6 nA 
-    end
-
     % I_BK Apical
     V_A_K = 1e3*R*T/F.*log(K_A./K_C); % mV  [1,n_loc_disc]
     if ~ GHK
     I_BK = G_BK.*330000 .* A_A_disc .* (V_A - V_A_K); % e-6 nA
     else
-    I_BK = G_BK .* A_A_disc .* F.^2 .* 1e-3.*V_A ./ (R*T) .* (K_C - K_A*exp(-1e-3*V_A*F/(R*T))) / (1 - exp(-1e-3*V_A*F/(R*T))); % e-6 nA 
+    I_BK = 10.* G_BK .* A_A_disc .* F.^2 .* 1e-3.*V_A ./ (R*T) .* (K_C - K_A*exp(-1e-3*V_A*F/(R*T))) / (1 - exp(-1e-3*V_A*F/(R*T))); % e-6 nA 
+    end
+
+    % ENaC Apical
+    V_A_Na = 1e3*R*T/F*log(Na_A./Na_C); % mV  [1,n_loc_disc]
+    if ~ GHK
+        I_ENaC = G_ENaC .*100000 .* A_A_disc .* (V_A - V_A_Na); % e-6 nA
+    else
+        I_ENaC = 10.*G_ENaC .* A_A_disc .* F.^2 .* 1e-3.*V_A ./ (R*T) .* (Na_C - Na_A*exp(-1e-3*V_A*F/(R*T))) / (1 - exp(-1e-3*V_A*F/(R*T))); % e-6 nA 
     end
 
     % I_Na_B Basolateral
@@ -259,29 +259,30 @@ for i = 1:n_c
     if ~ GHK
     I_Na_B = G_Na_B *300000 * A_B .* (V_B - V_B_Na); % e-6 nA
     else
-    I_Na_B = G_Na_B * A_B * F^2 * 1e-3*V_B / (R*T) * (Na_C - Na_B*exp(-1e-3*V_B*F/(R*T))) / (1 - exp(-1e-3*V_B*F/(R*T))); % e-6 nA
+    I_Na_B = 10* G_Na_B * A_B * F^2 * 1e-3*V_B / (R*T) * (Na_C - Na_B*exp(-1e-3*V_B*F/(R*T))) / (1 - exp(-1e-3*V_B*F/(R*T))); % e-6 nA
     end
-    
+
     % I_K_B Basolateral
     V_B_K = 1e3*R*T/F.*log(K_B./K_C); % mV
     if ~ GHK
     I_K_B = G_K_B *90000 * A_B .* (V_B - V_B_K); % e-6 nA
     else
-    I_K_B = G_K_B .* A_B * F^2 * 1e-3*V_B / (R*T) * (K_C - K_B*exp(-1e-3*V_B*F/(R*T))) / (1 - exp(-1e-3*V_B*F/(R*T)));
+    I_K_B = 10* G_K_B .* A_B * F^2 * 1e-3*V_B / (R*T) * (K_C - K_B*exp(-1e-3*V_B*F/(R*T))) / (1 - exp(-1e-3*V_B*F/(R*T)));
     end
-    
+
     % I_Cl_B Basolateral
     V_B_Cl = 1e3*R*T/(-1*F).*log(Cl_B./Cl_C); % mV
+
     if ~ GHK
     I_Cl_B = G_Cl_B .*100000 * A_B .* (V_B - V_B_Cl); % e-6 nA 
     else
-    I_Cl_B = G_Cl_B * A_B * F^2 * 1e-3*V_B / (R*T) * (Cl_C - Cl_B*exp(1e-3*V_B*F/(R*T))) / (1 - exp(1e-3*V_B*F/(R*T)));
+    I_Cl_B = 10* G_Cl_B * A_B * F^2 * 1e-3*V_B / (R*T) * (Cl_C - Cl_B*exp(1e-3*V_B*F/(R*T))) / (1 - exp(1e-3*V_B*F/(R*T)));
     end
 
     % NaKATPase, NKA 
-    J_NKA_A = A_A_disc .* alpha_NKA_A * r_NKA .*(K_A.^2.*Na_C.^3)./(K_A.^2+beta_NKA*Na_C.^3); % 10^-12 mol/s [1,n_loc_disc]
-    J_NKA_B = A_B .* alpha_NKA_B * r_NKA .*(K_B.^2.*Na_C.^3)./(K_B.^2+beta_NKA*Na_C.^3); % 10^-12 mol/s
-    
+    J_NKA_A = 1e-4.* A_A_disc .* alpha_NKA_A * r_NKA .*(K_A.^2.*Na_C.^3)./(K_A.^2+beta_NKA*Na_C.^3); % 10^-12 mol/s [1,n_loc_disc]
+    J_NKA_B = 1e-4.* A_B .* alpha_NKA_B * r_NKA .*(K_B.^2.*Na_C.^3)./(K_B.^2+beta_NKA*Na_C.^3); % 10^-12 mol/s
+     
     
     % Paracellular currents
     V_T      = V_A - V_B; % mV
@@ -293,9 +294,9 @@ for i = 1:n_c
         I_P_K    = G_P_K.*65000 .* A_A_disc .* (V_T - V_P_K); % e-6 nA [1,n_loc_disc] .*49000
         I_P_Cl   = G_P_Cl.*180000 .* A_A_disc .* (V_T - V_P_Cl); % e-6 nA [1,n_loc_disc] .*280000
     else
-        I_P_Na   = G_P_Na .* A_A_disc .* F.^2 .* 1e-3.*V_T ./ (R*T) .* (Na_B - Na_A*exp(-1e-3*V_T*F/(R*T))) / (1 - exp(-1e-3*V_T*F/(R*T))); % e-6 nA [1,n_loc_disc]
-        I_P_K    = G_P_K .* A_A_disc .* F.^2 .* 1e-3.*V_T ./ (R*T) .* (K_B - K_A*exp(-1e-3*V_T*F/(R*T))) / (1 - exp(-1e-3*V_T*F/(R*T))); % e-6 nA [1,n_loc_disc]
-        I_P_Cl   = G_P_Cl .* A_A_disc .* F.^2 .* 1e-3.*V_T ./ (R*T) .* (Cl_B - Cl_A*exp(1e-3*V_T*F/(R*T))) / (1 - exp(1e-3*V_T*F/(R*T))); % e-6 nA [1,n_loc_disc]
+        I_P_Na   = 10.* G_P_Na .* A_A_disc .* F.^2 .* 1e-3.*V_T ./ (R*T) .* (Na_B - Na_A*exp(-1e-3*V_T*F/(R*T))) / (1 - exp(-1e-3*V_T*F/(R*T))); % e-6 nA [1,n_loc_disc]
+        I_P_K    = 10.* G_P_K .* A_A_disc .* F.^2 .* 1e-3.*V_T ./ (R*T) .* (K_B - K_A*exp(-1e-3*V_T*F/(R*T))) / (1 - exp(-1e-3*V_T*F/(R*T))); % e-6 nA [1,n_loc_disc]
+        I_P_Cl   = 10.* G_P_Cl .* A_A_disc .* F.^2 .* 1e-3.*V_T ./ (R*T) .* (Cl_B - Cl_A*exp(1e-3*V_T*F/(R*T))) / (1 - exp(1e-3*V_T*F/(R*T))); % e-6 nA [1,n_loc_disc]
    end
     
     
