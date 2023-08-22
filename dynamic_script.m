@@ -10,28 +10,63 @@
 % time_series.K = P.ConP.K*ones(1,5001);
 
 % load("Acinus PDE Results\result_bicarb_smooth_VPLC0.002.mat")
-load("Acinus PDE Results/result_bicarb_VPLC0.004.mat")
-time_series.Q = time_series.Q*7;    
-% plot(time_series.time,time_series.Q)
+load("result_bicarb_VPLC0.004.mat")
+time_series.Q = time_series.Q*7;
 
+% for i = 7800:length(time_series.time)
+%     if i+14<length(time_series.time)
+%         window = i-14:i+14;
+%     else
+%         window = i-14:length(time_series.time);
+%     end
+%     time_series.Q(i) = mean(time_series.Q(window));
+%     time_series.Na(i) = mean(time_series.Na(window));
+%     time_series.K(i) = mean(time_series.K(window));
+%     time_series.Cl(i) = mean(time_series.Cl(window));
+%     time_series.HCO(i) = mean(time_series.HCO(window));
+%     time_series.H(i) = mean(time_series.H(window));
+% end
+% 
+% figure (3)
+% subplot(3,2,1)
+% plot(time_series.time,time_series.Q)
+% subplot(3,2,2)
+% plot(time_series.time,time_series.Na)
+% subplot(3,2,3)
+% plot(time_series.time,time_series.K)
+% subplot(3,2,4)
+% plot(time_series.time,time_series.Cl)
+% subplot(3,2,5)
+% plot(time_series.time,time_series.HCO)
+% subplot(3,2,6)
+% plot(time_series.time,time_series.H)
+
+%%
 step = 0.1;
-tspan = [0:step:1000];%[0:step:400,401:25000];
-% tspan = [0,1000];
+tspan1 = [0:0.1:400];%[0:step:400,401:25000];
 x = y(end,:);
 
 tic
-[t,z] = ode15s(@(t,z) f_ODE_noMass(t,z,P,s_cell_prop,s_lumen_prop,0,1,time_series), tspan, x);
+[t,z1] = ode15s(@(t,z) f_ODE_noMass(t,z,P,s_cell_prop,s_lumen_prop,0,1,time_series), tspan1, x);
 toc
 
+tspan2 = [400.1:0.1:1000];
+x = z1(end,:);
+
+tic
+[t,z2] = ode15s(@(t,z) f_ODE_noMass(t,z,P,s_cell_prop,s_lumen_prop,0,1,time_series), tspan2, x);
+toc
+
+t = [tspan1,tspan2];
+z = [z1;z2];
+
 %% plot whole duct at a fixed time point
-time = 500;% second
+time = 400;% second
 time_ind = time/step +1;
 n_c = length(cell_prop);
 yyy_c = reshape(z(time_ind,1 : n_c*9),9,[]); %[9, n_c]
 yyy_l = reshape(z(time_ind,1+n_c*9 : end),6,[]); %[6, n_l]
 
-displ = 1;
-if displ
 IntPos = zeros(1,lumen_prop.n_disc);
 IntPos(1) = lumen_prop.disc_length(1);
 for i = 2:lumen_prop.n_disc
@@ -151,7 +186,8 @@ title('Luminal pH')
 % yyy_c = reshape(z(time_ind,1 : n_c*9),9,[]); %[9, n_c]
 % yyy_l = reshape(z(time_ind,1+n_c*9 : end),6,[]); %[6, n_l]
 
-t_sample = 1:200:10000;
+% t_sample = 1:200:10000;
+t_sample = 1:100:5000;
 x = 1:2:(length(lumen_prop.disc_length)-1);
 pos = zeros(size(x));
 tt = t(t_sample);
@@ -221,7 +257,6 @@ ylabel('Time (s)')
 xlabel('Dist along Duct (\mum)')
 xlim([0,150])
 title('D : Cell volume')
-end
 
 lumen_data = yyy_l(:,1);
 % lumen_data = z;
