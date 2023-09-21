@@ -38,13 +38,20 @@ for i = 0:n_l-1
 end
 
 % insert zero matrix to cell with no apical membrane
-cell_no = 25;
-z_insert = zeros(n_t, n_c_remain);
-z_insert(:,1) = 23;
-z_insert(:,2) = 140;
-z_insert(:,3) = 20;
-z_insert(:,4) = 20;
-z_insert(:,5) = 7.3;
+cell_no = 45;
+mean_dist = 28.28; % distance of the cell from duct exit, can be found by running process_mesh_info.m .
+dist = 100;
+for i = 1:n_c
+    cell_dist = abs(s_cell_prop{i}.mean_dist - mean_dist);
+    % pick the index of the cell that is the closest to the skipped cell
+    if cell_dist < dist
+        min_i = i;
+        dist = cell_dist;
+    end
+end
+
+z_insert = zzz(:,min_i*n_c_remain+1:min_i*n_c_remain+n_c_remain);
+
 insrt_idx = (cell_no - 1)*n_c_remain;
 zzzz = [zzz(:,1:insrt_idx), z_insert, zzz(:,insrt_idx+1:end)];
 

@@ -57,19 +57,24 @@ disc_X_area = zeros(1,6);
 % keep track of the output segment/disc of each segment/disc, in terms of water flow
 seg_out_Vec = zeros(1, n_seg);
 disc_out_Vec = zeros(1, 6);
+disc_nodes_coord = zeros(6, 3);
+disc_nodes_coord(1,:) = nodes(segments(1,2)+1,:);
 
 % calculate the centre coord of each disc
 centres = zeros(6, 3);
 
 for i = 1:n_seg
-    n = ceil(seg_length(i)/L); % num of discs in this segment
-    
-    % the first n discs has length L
+    n = floor(seg_length(i)/L); % num of discs in this segment
+    if seg_length(i)-n*L > L/2 % if the overhanging element is rather long (>0.5um), we add an element
+        n = n+1;
+    end
+
+    % the first n-1 discs has length L
     disc_length(n_disc+1 : n_disc+n-1 ) = L;
     
     % the last disc has the remainder as length
     if mod(seg_length(i), L)~= 0 
-        disc_length(n_disc+n) = mod(seg_length(i), L);
+        disc_length(n_disc+n) = seg_length(i)-(n-1)*L;
     else
         disc_length(n_disc+n) = L;
     end
@@ -79,11 +84,14 @@ for i = 1:n_seg
     
     % record the 3D coord of each nodes at ends of discs
     disc_nodes = zeros(n+1, 3);
-    disc_nodes(1,:) = nodes(segments(i,1)+1,:);
-    disc_nodes(n+1,:) = nodes(segments(i,2)+1,:);
+    disc_nodes(1,:) = nodes(segments(i,2)+1,:);
+    disc_nodes(n+1,:) = nodes(segments(i,1)+1,:);
     d = disc_nodes(n+1,1);
     e = disc_nodes(n+1,2);
     f = disc_nodes(n+1,3);
+    a = disc_nodes(1,1);
+    b = disc_nodes(1,2);
+    c = disc_nodes(1,3);
         
     % dis_mid_point is used to interpolate disc radius
     disc_mid_point = zeros(1,n);
@@ -92,14 +100,12 @@ for i = 1:n_seg
         
         d_length = sum(disc_length(n_disc+1:n_disc+j));
         s_length = seg_length(i);
-        a = disc_nodes(j,1);
-        b = disc_nodes(j,2);
-        c = disc_nodes(j,3);
         
         disc_nodes(j+1, :) = [a+(d-a)*d_length/s_length, b+(e-b)*d_length/s_length, c+(f-c)*d_length/s_length];
         centres(n_disc+j,:) = (disc_nodes(j,:) + disc_nodes(j+1,:))/2;
         
     end
+    disc_nodes_coord(n_disc+2:n_disc+n+1,:) = disc_nodes(2:n+1,:);
     disc_X_area(n_disc+1 : n_disc+n) = pi*(radii(i) + (radii(i+1)-radii(i))./seg_length(i).*disc_mid_point).^2;
     
     % seg_out [1, n_seg] 
@@ -139,11 +145,13 @@ disc_volume = disc_X_area .* disc_length;
 % Saving function output
 %   - duct segments information is not saved pass this function
 %   - only duct discs information in returned as function output
+lumen_prop.disc_2_nodes = [[2:n_disc+1]',[disc_out_Vec'+1]];
 lumen_prop.disc_length = disc_length;
 lumen_prop.n_disc = n_disc;
 lumen_prop.disc_volume = disc_volume;
 lumen_prop.disc_X_area = disc_X_area;
 lumen_prop.disc_out_Vec = disc_out_Vec;
+lumen_prop.disc_nodes_coord = disc_nodes_coord;
 lumen_prop.acinus_disc = acinus_disc;
 lumen_prop.disc_centres = centres;
 
@@ -165,6 +173,7 @@ for i = 1:n_cell
     if cell_struct.api_area == 0
         message = strcat("Cell ", num2str(i), " has no apical faces, thus skipped");
         disp(message)
+        fprintf("The mean distance of the cell from duct exit is %.2f um. \n", cell_struct.mean_dist);
         continue
     else
         cell_count = cell_count + 1;

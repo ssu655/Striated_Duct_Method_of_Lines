@@ -40,12 +40,12 @@ s_lumen_prop = lumen_prop;
 
 %% Simplifying the model to one ID and one SD compartment
 
-[s_cell_prop, s_lumen_prop] = simplify_mesh(cell_prop, lumen_prop);
+% [s_cell_prop, s_lumen_prop] = simplify_mesh(cell_prop, lumen_prop);
 
 %% Parameter structure setup
 
-parms_file = "parms_ex-vivo.ini";
-% parms_file = "parms_in-vivo.ini";
+% parms_file = "parms_ex-vivo.ini";
+parms_file = "parms_in-vivo.ini";
 
 [P_i, P_s] = get_parameters(Conc, PSflow, parms_file);
 s_cell_prop = scale_parameters(s_cell_prop, P_i, P_s);
@@ -197,7 +197,7 @@ subplot(3,2,6)
 plot(IntPos, -log10(y_l(5,:)*1e-3),'.','MarkerSize',10)
 xlabel('Dist along duct (\mum)')
 title('Lumenal pH')
-set(gcf,'position',[100,50,600,900])
+set(gcf,'position',[100,50,600,700])
 
 %% Plotting the simplified cell model
 
