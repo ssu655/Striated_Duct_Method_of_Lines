@@ -71,32 +71,33 @@ end
 
 function P = copy_param(param,s)
 
+a = 1; % Scalling factor for primary saliva fluid flow
 
 % apical channels conductances 
-P.G_ENaC = param.g_enac;% 2.5;
+P.G_ENaC = a * param.g_enac;% 2.5;
 
-P.G_CFTR = param.g_cftr;% 10;
+P.G_CFTR = a * param.g_cftr;% 10;
 
-P.G_CaCC = param.g_cacc;% 10;
+P.G_CaCC = a * param.g_cacc;% 10;
 
-P.G_BK = param.g_bk;% 6;
+P.G_BK = a * param.g_bk;% 6;
 
 % basolateral channels conductances 
-P.G_K_B = param.g_k_b;% 0.5;
-P.G_Cl_B = param.g_cl_b;
-P.G_Na_B = param.g_na_b;
+P.G_K_B = a * param.g_k_b;% 0.5;
+P.G_Cl_B = a * param.g_cl_b;
+P.G_Na_B = a * param.g_na_b;
 
 % apical or basolateral transporter rates
 P.NBC = struct;
-P.NBC.G_A = param.nbc_g_a; %
-P.NBC.G_B = param.nbc_g_b; % 
+P.NBC.G_A = a * param.nbc_g_a; %
+P.NBC.G_B = a * param.nbc_g_b; % 
 P.NBC.K_na = param.nbc_k_na; 
 P.NBC.K_hco = param.nbc_k_hco; 
 P.NBC.R_lk = param.nbc_r_lk; 
 
 P.AE = struct;
-P.AE.G_A = param.ae_g_a; % 0.001;
-P.AE.G_B = param.ae_g_b; %0.0001;
+P.AE.G_A = a * param.ae_g_a; % 0.001;
+P.AE.G_B = a * param.ae_g_b; %0.0001;
 P.AE.k3_p = param.ae_k3_p; %5.86; % 1/s
 P.AE.k3_m = param.ae_k3_m; %1.06e8; % 1/s
 P.AE.k4_p = param.ae_k4_p; %9.3e7; % 1/s
@@ -105,8 +106,8 @@ P.AE.K_cl = param.ae_k_cl;
 P.AE.K_hco = param.ae_k_hco; 
 
 P.NHE = struct;
-P.NHE.G_A = param.nhe_g_a; %0.0001;
-P.NHE.G_B = param.nhe_g_b; %0.0001;
+P.NHE.G_A = a * param.nhe_g_a; %0.0001;
+P.NHE.G_B = a * param.nhe_g_b; %0.0001;
 P.NHE.K_h = param.nhe_k_h; 
 P.NHE.K_na = param.nhe_k_na; 
 
@@ -115,21 +116,21 @@ P.p_CO = param.p_co; %50; % 1/s
 
 % CO2 bicarbonate buffering
 P.buf = struct;
-P.buf.k_p = param.buf_k_p; %/s
-P.buf.k_m = param.buf_k_m; %/mMs
+P.buf.k_p = a * param.buf_k_p; %/s
+P.buf.k_m = a * param.buf_k_m; %/mMs
 
 % sodium potassium pump rates
 P.NKA = struct;
-P.NKA.alpha_A = param.nka_alpha_a; % 0.7e-8; % mol/m2
-P.NKA.alpha_B = param.nka_alpha_b; % 0.9e-8; % mol/m2
+P.NKA.alpha_A = a * param.nka_alpha_a; % 0.7e-8; % mol/m2
+P.NKA.alpha_B = a * param.nka_alpha_b; % 0.9e-8; % mol/m2
 
 P.NKA.r = param.nka_r; % 1.305e-3; %mM-3s-1
 P.NKA.beta = param.nka_beta; % 0.647e-4; %mM-1
 
 % paracellular conductances
-P.G_P_Na = param.g_p_na;   %S/m2
-P.G_P_K = param.g_p_k;     %S/m2
-P.G_P_Cl =  param.g_p_cl;   %S/m2
+P.G_P_Na = a * param.g_p_na;   %S/m2
+P.G_P_K = a * param.g_p_k;     %S/m2
+P.G_P_Cl =  a * param.g_p_cl;   %S/m2
 
 % water permeability across membranes
 P.L_A = param.l_a; % 0.6e1; % um/s
