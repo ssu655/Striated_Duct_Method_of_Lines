@@ -59,8 +59,13 @@ toc
 
 t = [tspan1,tspan2];
 z = [z1;z2];
+%% Plot the fluxes at a fixed time point (steady-state with stimulation)
 
-%% plot whole duct at a fixed time point
+ind = find(t==400); % at time = 400 second
+
+f_ODE_noMass(t(ind), z(ind,:), P,s_cell_prop, s_lumen_prop, 1, 1, time_series);
+
+%% plot whole duct at a fixed time point (steady-state with stimulation)
 time = 400;% second
 time_ind = time/step +1;
 n_c = length(cell_prop);
@@ -92,40 +97,48 @@ end
 CellPos = max_length - CellPos;
 
 figure
-subplot(3,2,1)
-plot(CellPos, yyy_c([1,2],I),'.')
+ax(1) = subplot(3,2,1);
+plot(CellPos, yyy_c([1,2],I),'.','MarkerSize',10)
 legend('V_A','V_B')
 ylabel('mV')
 title('Membrane Potential')
-subplot(3,2,2)
+ax(2) = subplot(3,2,2);
 w = yyy_c(3,I);
-plot(CellPos(find(CellType(1,:))), w(find(CellType(1,:))),'.')
+plot(CellPos(find(CellType(1,:))), w(find(CellType(1,:))),'.','MarkerSize',10)
 hold on
-plot(CellPos(find(CellType(2,:))), w(find(CellType(2,:))),'.')
+plot(CellPos(find(CellType(2,:))), w(find(CellType(2,:))),'.','MarkerSize',10)
 hold off
 legend('ID', 'SD')
 ylabel('\mu m^3')
 title('Cell Volume')
-subplot(3,2,3)
-plot(CellPos, yyy_c([4,5,6,7],I),'.')
+ax(3) = subplot(3,2,3);
+plot(CellPos, yyy_c([4,5,6,7],I),'.','MarkerSize',10)
 legend('Na_C','K_C','Cl_C','HCO_C')
 ylabel('mM')
 title('Cellular Concentration')
-subplot(3,2,4)
-plot(CellPos, -log10(yyy_c(8,I)*1e-3),'.')
+ax(4) = subplot(3,2,4);
+plot(CellPos, -log10(yyy_c(8,I)*1e-3),'.','MarkerSize',10)
 title('Cellular pH')
-subplot(3,2,5)
-plot(IntPos, yyy_l([1,2,3,4],:),'.')
+ax(5) = subplot(3,2,5);
+plot(IntPos, yyy_l([1,2,3,4],:),'.','MarkerSize',10)
 legend('Na_A','K_A','Cl_A','HCO_A')
 ylabel('mM')
 xlabel('Duct Length (\mum)')
 title('Luminal Concentration')
-subplot(3,2,6)
-plot(IntPos, -log10(yyy_l(5,:)*1e-3),'.')
+ax(6) = subplot(3,2,6);
+plot(IntPos, -log10(yyy_l(5,:)*1e-3),'.','MarkerSize',10)
 xlabel('Duct Length (\mum)')
 title('Luminal pH')
 
-%% plotting dynamic result
+sgtitle('Steady-state duct solution') 
+set(gcf,'position',[250,50,800,700])
+x_range = [0,190];
+
+for k = 1:6
+    xlim(ax(k),x_range)
+%     set(ax(k),'xtick',[],'YGrid','on','xlim',x_range)
+end
+%% plotting single cell dynamic result
 % if displ
 % load("low_stim.mat")
 cell_no = 50;
@@ -137,49 +150,57 @@ yy_c = z(:,[cell_no*9+1 : cell_no*9+9]);
 yy_l = z(:,[n_c*9+loc_disc(1)*6+1:n_c*9+loc_disc(1)*6+6]);
 
 figure
-subplot(3,2,1)
-plot(t, yy_c(:,1),'LineWidth',1)
+ax(1) = subplot(3,2,1);
+plot(t, yy_c(:,1),'LineWidth',2)
 hold on
-plot(t, yy_c(:,2),'LineWidth',1)
+plot(t, yy_c(:,2),'LineWidth',2)
 hold off
 legend('V_A','V_B')
 ylabel('mV')
 ylim([-80,0])
 title('Membrane Potentials')
-subplot(3,2,2)
-plot(t, yy_c(:,3),'LineWidth',1)
+ax(2) = subplot(3,2,2);
+plot(t, yy_c(:,3),'LineWidth',2)
 ylabel('\mum^3')
 string1 = strcat('Cell Volume, cell at :',num2str(cell_prop{cell_no+1}.mean_dist), '\mu m');
 title(string1)
-subplot(3,2,3)
-plot(t, yy_c(:,4),'LineWidth',1)
+ax(3) = subplot(3,2,3);
+plot(t, yy_c(:,4),'LineWidth',2)
 hold on
-plot(t, yy_c(:,5),'LineWidth',1)
-plot(t, yy_c(:,6),'LineWidth',1)
-plot(t, yy_c(:,7),'LineWidth',1)
+plot(t, yy_c(:,5),'LineWidth',2)
+plot(t, yy_c(:,6),'LineWidth',2)
+plot(t, yy_c(:,7),'LineWidth',2)
 hold off
 legend('Na_C','K_C','Cl_C','HCO_C')
 ylabel('mM')
 title('Cellular Concentrations')
-subplot(3,2,4)
-plot(t, -log10(yy_c(:,8)*1e-3),'-','LineWidth',1)
+ax(4) = subplot(3,2,4);
+plot(t, -log10(yy_c(:,8)*1e-3),'-','LineWidth',2)
 title('Cellular pH')
-subplot(3,2,5)
-plot(t, yy_l(:,1),'LineWidth',1)
+ax(5) = subplot(3,2,5);
+plot(t, yy_l(:,1),'LineWidth',2)
 hold on
-plot(t, yy_l(:,2),'LineWidth',1)
-plot(t, yy_l(:,3),'LineWidth',1)
-plot(t, yy_l(:,4),'LineWidth',1)
+plot(t, yy_l(:,2),'LineWidth',2)
+plot(t, yy_l(:,3),'LineWidth',2)
+plot(t, yy_l(:,4),'LineWidth',2)
 hold off
 legend('Na_A','K_A','Cl_A','HCO_A')
 ylabel('mM')
 xlabel('time (s)')
 title('Luminal Concentrations')
-subplot(3,2,6)
-plot(t, -log10(yy_l(:,5)*1e-3),'LineWidth',1)
+ax(6) = subplot(3,2,6);
+plot(t, -log10(yy_l(:,5)*1e-3),'LineWidth',2)
 xlabel('time (s)')
 title('Luminal pH')
 
+sgtitle('Single duct cell temporal response') 
+set(gcf,'position',[300,150,800,700])
+x_range = [0,1350];
+
+for k = 1:6
+    xlim(ax(k),x_range)
+%     set(ax(k),'xtick',[],'YGrid','on','xlim',x_range)
+end
 %% showing whole duct info across all time
 % time = 500;% second
 % time_ind = time/step +1;

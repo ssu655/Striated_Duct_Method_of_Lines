@@ -451,8 +451,8 @@ if displ
     end
     CellPos = max_length - CellPos;
     
-    figure_no = 4;
-    plot_fluxes(figure_no, CellPos, IntPos, flux, dwAdt)
+    % figure_no = 4;
+    % plot_fluxes(figure_no, CellPos, IntPos, flux, dwAdt)
     
 %     c_idx = find(CellType(2,:));
     c_idx = 1:n_c;
@@ -460,7 +460,7 @@ if displ
     z = IntPos(l_idx);
     x = CellPos(c_idx);
 
-    x_range = [0,180];
+    x_range = [-30,190];
     
 %% plot the apical fluxes breakdown
     figure(5)
@@ -516,9 +516,9 @@ if displ
     title('Apical HCO_3^- into lumen')
     ylabel('nA/\mum')
     legend('I_{CFTR_B}', 'J_{buf_A}', 'J_{AE_A}', 'J_{NBC_A}','AutoUpdate','off')
-    xlabel('Duct entry                             Duct exit')
+    xlabel('Duct entry                                Duct exit')
     
-    sgtitle('Apical ion flux per \mum duct ( positive flux enters lumen )') 
+    sgtitle('Apical ion fluxs per \mum duct ( positive flux enters lumen )') 
     
 
     % plot the apical net fluxes
@@ -546,7 +546,7 @@ if displ
 %     ylim([-0.002,0.04]) % in-vivo
     ylim([-0.005,0.041]) % ex-vivo
     legend('HCO_3^-','AutoUpdate','off')
-    xlabel('Duct entry                             Duct exit')
+    xlabel('Duct entry                                Duct exit')
 
     set(gcf,'position',[200,50,850,900])
 
@@ -629,7 +629,7 @@ if displ
     y(4,:) = -flux.J_NBC_A_c(c_idx).*F.*1e-9;
     plot(ax(7),x,y,'.','MarkerSize',10)
     title(ax(7),'Apical HCO_3^- into lumen ')
-    xlabel(ax(7),'Duct entry                             Duct exit')
+    xlabel(ax(7),'Duct entry                                Duct exit')
     legend(ax(7),'I_{CFTR_B}', 'J_{buf_A}', 'J_{AE_A}', 'J_{NBC_A}','AutoUpdate','off','Location','northeast')
 
     % subplot(4,2,8)
@@ -640,9 +640,9 @@ if displ
     plot(ax(8),x,y,'.','MarkerSize',10)
     title(ax(8),'Basolateral HCO_3^- into cell ')
     legend(ax(8),'J_{AE_B}','J_{buf_C}','J_{NBC_B}','AutoUpdate','off','Location','east')
-    xlabel(ax(8),'Duct entry                             Duct exit')
+    xlabel(ax(8),'Duct entry                                Duct exit')
 
-
+    sgtitle('Apical & Basolateral ion fluxs per cell ( positive flux enters lumen )') 
     set(gcf,'position',[400,50,850,900])
 
     for k = 1:8

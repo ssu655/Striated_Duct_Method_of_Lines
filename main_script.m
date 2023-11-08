@@ -147,7 +147,7 @@ CellPos = max_length - CellPos;
 % Plotting the full model
 
 figure
-subplot(3,2,1)
+ax(1) = subplot(3,2,1);
 plot(CellPos, y_c(1,I),'.','MarkerSize',10)
 hold on
 plot(CellPos, y_c(2,I),'.','MarkerSize',10)
@@ -155,7 +155,7 @@ hold off
 legend('V_A','V_B','Location','east')
 ylabel('mV')
 title('Membrane Potential')
-subplot(3,2,2)
+ax(2) = subplot(3,2,2);
 w = y_c(3,I);
 plot(CellPos(find(CellType(1,I))), w(find(CellType(1,I))),'.','MarkerSize',10)
 hold on
@@ -164,7 +164,7 @@ hold off
 legend('ID', 'SD','Location','best')
 ylabel('\mum^3')
 title('Cell Volumn')
-subplot(3,2,3)
+ax(3) = subplot(3,2,3);
 plot(CellPos, y_c(4,I),'.','MarkerSize',10)
 hold on
 plot(CellPos, y_c(5,I),'.','MarkerSize',10)
@@ -174,7 +174,7 @@ hold off
 legend('Na_C','K_C','Cl_C','HCO_C','Location','east')
 ylabel('mM')
 title('Cellular Concentration')
-subplot(3,2,4)
+ax(4) = subplot(3,2,4);
 w = -log10(y_c(8,I)*1e-3);
 plot(CellPos(find(CellType(1,I))), w(find(CellType(1,I))),'.','MarkerSize',10)
 hold on
@@ -182,7 +182,7 @@ plot(CellPos(find(CellType(2,I))), w(find(CellType(2,I))),'.','MarkerSize',10)
 hold off
 legend('ID', 'SD','Location','best')
 title('Cellular pH')
-subplot(3,2,5)
+ax(5) = subplot(3,2,5);
 plot(IntPos, y_l(1,:),'.','MarkerSize',10)
 hold on
 plot(IntPos, y_l(2,:),'.','MarkerSize',10)
@@ -193,12 +193,20 @@ legend('Na_A','K_A','Cl_A','HCO_A','Location','northeast')
 ylabel('mM')
 xlabel('Dist along duct (\mum)')
 title('Lumenal Concentration')
-subplot(3,2,6)
+ax(6) = subplot(3,2,6);
 plot(IntPos, -log10(y_l(5,:)*1e-3),'.','MarkerSize',10)
 xlabel('Dist along duct (\mum)')
 title('Lumenal pH')
-set(gcf,'position',[100,50,600,700])
 
+set(gcf,'position',[100,50,750,700])
+sgtitle('Steady-state duct solution') 
+
+x_range = [0,190];
+
+for k = 1:6
+    xlim(ax(k),x_range)
+%     set(ax(k),'xtick',[],'YGrid','on','xlim',x_range)
+end
 %% Plotting the simplified cell model
 
 figure
