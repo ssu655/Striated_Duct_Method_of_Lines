@@ -199,7 +199,7 @@ xlabel('Dist along duct (\mum)')
 title('Lumenal pH')
 
 set(gcf,'position',[100,50,750,700])
-sgtitle('Steady-state duct solution') 
+sgtitle('Steady-state duct solution')
 
 x_range = [0,190];
 
